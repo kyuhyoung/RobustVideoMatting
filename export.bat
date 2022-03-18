@@ -1,0 +1,1 @@
+python export_onnx.py  --model-variant mobilenetv3  --checkpoint work\checkpoint\rvm_mobilenetv3.pth --precision float32  --opset 12  --device cuda --output model.onnx

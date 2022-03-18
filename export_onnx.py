@@ -2,7 +2,7 @@
 python export_onnx.py \
     --model-variant mobilenetv3 \
     --checkpoint rvm_mobilenetv3.pth \
-    --precision float16 \
+    --precision float32 \
     --opset 12 \
     --device cuda \
     --output model.onnx
@@ -46,31 +46,33 @@ class Exporter:
         src = torch.randn(1, 3, 1080, 1920).to(self.args.device, self.precision)
         downsample_ratio = torch.tensor([0.25]).to(self.args.device)
         
-        dynamic_spatial = {0: 'batch_size', 2: 'height', 3: 'width'}
-        dynamic_everything = {0: 'batch_size', 1: 'channels', 2: 'height', 3: 'width'}
+        #dynamic_spatial = {0: 'batch_size', 2: 'height', 3: 'width'}
+        #dynamic_everything = {0: 'batch_size', 1: 'channels', 2: 'height', 3: 'width'}
         
         torch.onnx.export(
-            self.model,
-            (src, *rec, downsample_ratio),
-            self.args.output,
+            model=self.model,
+            args=(src, *rec, downsample_ratio),
+            f=self.args.output,
             export_params=True,
+            verbose=False,
             opset_version=self.args.opset,
             do_constant_folding=True,
             input_names=['src', 'r1i', 'r2i', 'r3i', 'r4i', 'downsample_ratio'],
             output_names=['fgr', 'pha', 'r1o', 'r2o', 'r3o', 'r4o'],
-            dynamic_axes={
-                'src': dynamic_spatial,
-                'fgr': dynamic_spatial,
-                'pha': dynamic_spatial,
-                'r1i': dynamic_everything,
-                'r2i': dynamic_everything,
-                'r3i': dynamic_everything,
-                'r4i': dynamic_everything,
-                'r1o': dynamic_spatial,
-                'r2o': dynamic_spatial,
-                'r3o': dynamic_spatial,
-                'r4o': dynamic_spatial,
-            })
+            # dynamic_axes={
+                # 'src': dynamic_spatial,
+                # 'fgr': dynamic_spatial,
+                # 'pha': dynamic_spatial,
+                # 'r1i': dynamic_everything,
+                # 'r2i': dynamic_everything,
+                # 'r3i': dynamic_everything,
+                # 'r4i': dynamic_everything,
+                # 'r1o': dynamic_spatial,
+                # 'r2o': dynamic_spatial,
+                # 'r3o': dynamic_spatial,
+                # 'r4o': dynamic_spatial,
+            # }
+            )
 
 if __name__ == '__main__':
     Exporter()
