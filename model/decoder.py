@@ -80,11 +80,12 @@ class UpsamplingBlock(nn.Module):
         self.gru = ConvGRU(out_channels // 2)
 
     def forward_single_frame(self, x, f, s, r):
-        x = self.upsample(x)
-        if not torch.onnx.is_in_onnx_export():
-            x = x[:, :, :s.size(2), :s.size(3)]
-        else:
-            x = CustomOnnxCropToMatchSizeOp.apply(x, s)
+        #x = self.upsample(x)
+        x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
+        # if not torch.onnx.is_in_onnx_export():
+            # x = x[:, :, :s.size(2), :s.size(3)]
+        # else:
+            # x = CustomOnnxCropToMatchSizeOp.apply(x, s)
         x = torch.cat([x, f, s], dim=1)
         x = self.conv(x)
         a, b = x.split(self.out_channels // 2, dim=1)
@@ -97,11 +98,12 @@ class UpsamplingBlock(nn.Module):
         x = x.flatten(0, 1)
         f = f.flatten(0, 1)
         s = s.flatten(0, 1)
-        x = self.upsample(x)
-        if not torch.onnx.is_in_onnx_export():
-            x = x[:, :, :H, :W]
-        else:
-            x = CustomOnnxCropToMatchSizeOp.apply(x, s)
+        #x = self.upsample(x)
+        x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
+        # if not torch.onnx.is_in_onnx_export():
+            # x = x[:, :, :H, :W]
+        # else:
+            # x = CustomOnnxCropToMatchSizeOp.apply(x, s)
         x = torch.cat([x, f, s], dim=1)
         x = self.conv(x)
         x = x.unflatten(0, (B, T))
@@ -131,11 +133,12 @@ class OutputBlock(nn.Module):
         )
         
     def forward_single_frame(self, x, s):
-        x = self.upsample(x)
-        if not torch.onnx.is_in_onnx_export():
-            x = x[:, :, :s.size(1), :s.size(2)]
-        else:
-            x = CustomOnnxCropToMatchSizeOp.apply(x, s)
+        #x = self.upsample(x)
+        x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
+        # if not torch.onnx.is_in_onnx_export():
+            # x = x[:, :, :s.size(1), :s.size(2)]
+        # else:
+            # x = CustomOnnxCropToMatchSizeOp.apply(x, s)
         x = torch.cat([x, s], dim=1)
         x = self.conv(x)
         return x
@@ -144,8 +147,9 @@ class OutputBlock(nn.Module):
         B, T, _, H, W = s.shape
         x = x.flatten(0, 1)
         s = s.flatten(0, 1)
-        x = self.upsample(x)
-        x = x[:, :, :H, :W]
+        #x = self.upsample(x)
+        x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
+        # x = x[:, :, :H, :W]
         x = torch.cat([x, s], dim=1)
         x = self.conv(x)
         x = x.unflatten(0, (B, T))
