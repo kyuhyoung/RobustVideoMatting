@@ -47,14 +47,15 @@ class MattingNetwork(nn.Module):
                 segmentation_pass: bool = False):
         
         if downsample_ratio != 1:
+            #print('a'); 
             src_sm = self._interpolate(src, scale_factor=downsample_ratio)
         else:
+            #print('b');
             src_sm = src
-        
         f1, f2, f3, f4 = self.backbone(src_sm)
         f4 = self.aspp(f4)
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
-        
+        #print('segmentation_pass :', segmentation_pass);    return; 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)
             if downsample_ratio != 1:
@@ -65,6 +66,7 @@ class MattingNetwork(nn.Module):
             return [fgr, pha, *rec]
         else:
             seg = self.project_seg(hid)
+            seg = seg.sigmoid()
             return [seg, *rec]
 
     def _interpolate(self, x: Tensor, scale_factor: float):

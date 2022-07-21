@@ -14,6 +14,7 @@ python inference.py \
 
 import torch
 import os
+import time
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
@@ -21,12 +22,26 @@ from tqdm.auto import tqdm
 
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter
 
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')    
+    
+
 def convert_video(model,
                   input_source: str,
                   input_resize: Optional[Tuple[int, int]] = None,
                   downsample_ratio: Optional[float] = None,
                   output_type: str = 'video',
                   output_composition: Optional[str] = None,
+                  output_original: Optional[str] = None,
+                  str_rgb_bg: Optional[str] = None,
                   output_alpha: Optional[str] = None,
                   output_foreground: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
@@ -34,7 +49,8 @@ def convert_video(model,
                   num_workers: int = 0,
                   progress: bool = True,
                   device: Optional[str] = None,
-                  dtype: Optional[torch.dtype] = None):
+                  #dtype: Optional[torch.dtype] = None):
+                  is_segmentation: bool = False, dtype: Optional[torch.dtype] = None):
     
     """
     Args:
@@ -72,7 +88,7 @@ def convert_video(model,
 
     # Initialize reader
     if os.path.isfile(input_source):
-        source = VideoReader(input_source, transform)
+        source = VideoReader(input_source, output_original, transform)
     else:
         source = ImageSequenceReader(input_source, transform)
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
@@ -111,20 +127,66 @@ def convert_video(model,
         dtype = param.dtype
         device = param.device
     
-    if (output_composition is not None) and (output_type == 'video'):
-        bgr = torch.tensor([120, 255, 155], device=device, dtype=dtype).div(255).view(1, 1, 3, 1, 1)
+    #if (output_composition is not None) and (output_type == 'video'):
+    if output_composition is not None:
+        if str_rgb_bg:
+            li_bgr_bg = [int(str_rgb) for str_rgb in str_rgb_bg.split('_')]
+            bgr = torch.tensor(li_bgr_bg, device=device, dtype=dtype).div(255).view(1, 1, 3, 1, 1)
+        else:     
+            bgr = torch.tensor([120, 255, 155], device=device, dtype=dtype).div(255).view(1, 1, 3, 1, 1)
     
     try:
         with torch.no_grad():
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
-            for src in reader:
-
+            li_sec_inf = list();    li_sec_total = list()
+            for idx, src in enumerate(reader):
+                start_total = time.time()
                 if downsample_ratio is None:
                     downsample_ratio = auto_downsample_ratio(*src.shape[2:])
-
+            
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0) # [B, T, C, H, W]
-                fgr, pha, *rec = model(src, *rec, downsample_ratio)
+                start_inf = time.time()   
+                #fgr, pha, *rec = model(src, *rec, downsample_ratio)
+                if is_segmentation:
+                    seg, *rec = model(src, *rec, downsample_ratio, is_segmentation)
+                else:      
+                    if idx <= 3:
+                        print('idx : {}'.format(idx))
+                        print('\tsrc.shape : {}'.format(src.shape))
+                        #   for 1920 x 1080 and any downsample_ratio
+                        #       src.shape : torch.Size([1, 1, 3, 1080, 1920])
+                        for iR, rec_mem in enumerate(rec):
+                            if rec_mem is not None:
+                                print('\t\tiR : {}, rec_mem.shape b4 : {}'.format(iR, rec_mem.shape))
+                            else:
+                                print('\t\tiR : {}, type(rec_mem) b4 : {}'.format(iR, type(rec_mem)))
+                                #   for 1920 x 1080, any downsample_ratio
+                                #       iR : 0, type(rec_mem) b4 : <class 'NoneType'>
+                                #       iR : 1, type(rec_mem) b4 : <class 'NoneType'>
+                                #       iR : 2, type(rec_mem) b4 : <class 'NoneType'>
+                                #       iR : 3, type(rec_mem) b4 : <class 'NoneType'>
+                    fgr, pha, *rec = model(src, *rec, downsample_ratio, is_segmentation)
+                    if idx <= 3:
+                        print('\tfgr.shape : {}, pha.shape : {}'.format(fgr.shape, pha.shape))
+                        #   for 1920 x 1080 and any downsample_ratio
+                        #       fgr.shape : torch.Size([1, 1, 3, 1080, 1920]), pha.shape : torch.Size([1, 1, 1, 1080, 1920])
+                        for iR, rec_mem in enumerate(rec):
+                            print('\t\tiR : {}, rec_mem.shape after : {}'.format(iR, rec_mem.shape))
+                            #   for 1920 x 1080, downsample_ratio = 1.0
+                            #       iR : 0, rec_mem.shape after : torchSize([1, 16, 540, 960])
+                            #       iR : 1, rec_mem.shape after : torchSize([1, 20, 270, 480])
+                            #       iR : 2, rec_mem.shape after : torchSize([1, 40, 135, 240])
+                            #       iR : 3, rec_mem.shape after : torchSize([1, 64, 68, 120])
+                            #
+                            #   for 1920 x 1080, downsample_ratio = 0.25
+                            #       iR : 0, rec_mem.shape after : torchSize([1, 16, 135, 240])
+                            #       iR : 1, rec_mem.shape after : torchSize([1, 20, 68, 120])
+                            #       iR : 2, rec_mem.shape after : torchSize([1, 40, 34, 60])
+                            #       iR : 3, rec_mem.shape after : torchSize([1, 64, 17, 30])
+                    else:
+                        exit(0)
+                sec_inf = time.time() - start_inf
 
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
@@ -132,14 +194,36 @@ def convert_video(model,
                     writer_pha.write(pha[0])
                 if output_composition is not None:
                     if output_type == 'video':
-                        com = fgr * pha + bgr * (1 - pha)
+                        if is_segmentation:
+                            #com = src * seg.sigmoid()
+                            com = src * seg + bgr * (1 - seg)
+                        else:
+                            com = fgr * pha + bgr * (1 - pha)
                     else:
-                        fgr = fgr * pha.gt(0)
-                        com = torch.cat([fgr, pha], dim=-3)
+                        if is_segmentation:
+                            #com = src * seg.sigmoid()
+                            com = src * seg + bgr * (1 - seg)
+                        else:
+                            fgr = fgr * pha.gt(0)
+                            #com = torch.cat([fgr, pha], dim=-3)
+                            com = fgr * pha + bgr * (1 - pha)
                     writer_com.write(com[0])
                 
                 bar.update(src.size(1))
-
+                #if 0 <= idx:
+                #if 10 < idx:
+                if 20 < idx:
+                #if 40 < idx:
+                    li_sec_inf.append(sec_inf)
+                    sec_total = time.time() - start_total
+                    li_sec_total.append(sec_total)
+            avg_ms_inf = 1000.0 * sum(li_sec_inf) / len(li_sec_inf)
+            #print('len(li_sec_inf) :', len(li_sec_inf));    exit(0)
+            avg_fps_inf = 1000.0 / avg_ms_inf
+            avg_fps_total = float(len(li_sec_total)) / float(sum(li_sec_total))
+            fn_fps = os.path.join(output_composition, 'avg_ms_inference-{}_avg_fps_inference-{:.1f}_avg_fps_total-{:.1f}.txt'.format(int(avg_ms_inf), avg_fps_inf, avg_fps_total))
+            open(fn_fps, 'w').close();
+            print('avg_ms_inf : {}, avg_fps_inf : {}, avg_fps_total : {}'.format(avg_ms_inf, avg_fps_inf, avg_fps_total))
     finally:
         # Clean up
         if output_composition is not None:
@@ -158,15 +242,26 @@ def auto_downsample_ratio(h, w):
 
 
 class Converter:
-    def __init__(self, variant: str, checkpoint: str, device: str):
-        self.model = MattingNetwork(variant).eval().to(device)
+    #def __init__(self, variant: str, checkpoint: str, device: str):
+    def __init__(self, variant: str, checkpoint: str, device: str, precision: str):
+        print('device :', device);  #exit(0)
+        print('torch.cuda.device_count() :', torch.cuda.device_count())
+        print('torch.cuda.current_device() :', torch.cuda.current_device())
+        print('torch.cuda.get_device_name(torch.cuda.current_device()) :', torch.cuda.get_device_name(torch.cuda.current_device()))
+        #t0 = MattingNetwork(variant)
+        #t1 = t0.eval()
+        #t2 = t1.to(device)
+        #self.model = MattingNetwork(variant).eval().to(device)
+        self.precision = torch.float32 if precision == 'float32' else torch.float16
+        self.model = MattingNetwork(variant).eval().to(device, self.precision)
         self.model.load_state_dict(torch.load(checkpoint, map_location=device))
         self.model = torch.jit.script(self.model)
         self.model = torch.jit.freeze(self.model)
         self.device = device
     
     def convert(self, *args, **kwargs):
-        convert_video(self.model, device=self.device, dtype=torch.float32, *args, **kwargs)
+        convert_video(self.model, device=self.device, dtype=self.precision, *args, **kwargs)
+        #convert_video(self.model, device=self.device, dtype=torch.float32, *args, **kwargs)
     
 if __name__ == '__main__':
     import argparse
@@ -180,6 +275,8 @@ if __name__ == '__main__':
     parser.add_argument('--input-resize', type=int, default=None, nargs=2)
     parser.add_argument('--downsample-ratio', type=float)
     parser.add_argument('--output-composition', type=str)
+    parser.add_argument('--output-original', type=str)
+    parser.add_argument('--str-rgb-bg', type=str)
     parser.add_argument('--output-alpha', type=str)
     parser.add_argument('--output-foreground', type=str)
     parser.add_argument('--output-type', type=str, required=True, choices=['video', 'png_sequence'])
@@ -187,21 +284,27 @@ if __name__ == '__main__':
     parser.add_argument('--seq-chunk', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--disable-progress', action='store_true')
+    parser.add_argument('--is-segmentation', type=str, default = 'False')
+    parser.add_argument('--precision', type=str, default = 'float32')
     args = parser.parse_args()
     
-    converter = Converter(args.variant, args.checkpoint, args.device)
+    #converter = Converter(args.variant, args.checkpoint, args.device)
+    converter = Converter(args.variant, args.checkpoint, args.device, args.precision)
     converter.convert(
         input_source=args.input_source,
         input_resize=args.input_resize,
         downsample_ratio=args.downsample_ratio,
         output_type=args.output_type,
         output_composition=args.output_composition,
+        output_original = args.output_original,
+        str_rgb_bg = args.str_rgb_bg,
         output_alpha=args.output_alpha,
         output_foreground=args.output_foreground,
         output_video_mbps=args.output_video_mbps,
         seq_chunk=args.seq_chunk,
         num_workers=args.num_workers,
-        progress=not args.disable_progress
+        is_segmentation = str2bool(args.is_segmentation), progress=not args.disable_progress
+        #progress=not args.disable_progress
     )
     
     

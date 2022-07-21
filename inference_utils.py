@@ -1,6 +1,6 @@
-import av
+#import av
+#import pims
 import os
-import pims
 import numpy as np
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
@@ -8,11 +8,15 @@ from PIL import Image
 
 
 class VideoReader(Dataset):
-    def __init__(self, path, transform=None):
+    def __init__(self, path, dir_img, transform=None):
         self.video = pims.PyAVVideoReader(path)
         self.rate = self.video.frame_rate
         self.transform = transform
-        
+        self.dir_img = dir_img
+        if dir_img:
+            print('dir_img :', dir_img); #   exit(0)
+            self.dir_img = dir_img
+            self.img_writer = ImageSequenceWriter(self.dir_img, 'png')
     @property
     def frame_rate(self):
         return self.rate
@@ -22,9 +26,17 @@ class VideoReader(Dataset):
         
     def __getitem__(self, idx):
         frame = self.video[idx]
+        #print('frame.shape 1 :', frame.shape)
         frame = Image.fromarray(np.asarray(frame))
+        #print('frame.size 2 : {}, frame.mode : {}'.format(frame.size, frame.mode))
         if self.transform is not None:
             frame = self.transform(frame)
+            #print('frame.shape 3 :', frame.shape)
+        if self.dir_img:
+            #print('frame.shape 4 :', frame.shape);  #exit(0)
+            #frame = frame.unsqueeze(0)
+            #print('frame.shape 5 :', frame.shape);  #exit(0)
+            self.img_writer.write(frame.unsqueeze(0))
         return frame
 
 
@@ -56,12 +68,16 @@ class ImageSequenceReader(Dataset):
     def __init__(self, path, transform=None):
         self.path = path
         self.files = sorted(os.listdir(path))
+        #print('path :', path);
+        #print('self.files :', self.files);  exit(0)
         self.transform = transform
         
     def __len__(self):
         return len(self.files)
     
     def __getitem__(self, idx):
+        #t0 = os.path.join(self.path, self.files[idx])
+        #print('t0 :', t0);  exit(0)
         with Image.open(os.path.join(self.path, self.files[idx])) as img:
             img.load()
         if self.transform is not None:
@@ -80,7 +96,7 @@ class ImageSequenceWriter:
         # frames: [T, C, H, W]
         for t in range(frames.shape[0]):
             to_pil_image(frames[t]).save(os.path.join(
-                self.path, str(self.counter).zfill(4) + '.' + self.extension))
+                self.path, str(self.counter).zfill(5) + '.' + self.extension))
             self.counter += 1
             
     def close(self):
