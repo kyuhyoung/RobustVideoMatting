@@ -88,9 +88,12 @@ def convert_video(model,
 
     # Initialize reader
     if os.path.isfile(input_source):
+        print('aaa')
         source = VideoReader(input_source, output_original, transform)
     else:
+        print('bbb')
         source = ImageSequenceReader(input_source, transform)
+    exit(0)
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
     
     # Initialize writers
