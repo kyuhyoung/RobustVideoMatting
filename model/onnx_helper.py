@@ -8,6 +8,47 @@ We implement custom ONNX export logics because PyTorch doesn't trace the use of 
 The custom export logics add support for runtime downsample_ratio input, and clean up the ONNX graph.
 """
 
+class CustomOnnxResizeBySizeOp(Function):
+    """
+    This implements bilinearly resize a tensor to match the size of another.
+    This implementation has cleaner ONNX graph than PyTorch's default export.
+    """
+    @staticmethod
+    def forward(ctx, x, sz):
+        assert x.ndim == 4
+        return F.interpolate(x, sz, mode='bilinear', align_corners=False)
+        #return F.interpolate(x, y.shape[2:], mode='bilinear', align_corners=False)
+    
+    @staticmethod
+    def symbolic(g, x, sz):
+        empty_roi = g.op("Constant", value_t=torch.tensor([], dtype=torch.float32))
+        empty_scales = g.op("Constant", value_t=torch.tensor([], dtype=torch.float32))
+        BC = g.op('Slice',
+            g.op('Shape', x), # input
+            g.op('Constant', value_t=torch.tensor([0])), # starts
+            g.op('Constant', value_t=torch.tensor([2])), # ends
+            g.op('Constant', value_t=torch.tensor([0])), # axes
+        )
+        HW = g.op('Slice',
+            g.op('Shape', y), # input
+            g.op('Constant', value_t=torch.tensor([2])), # starts
+            g.op('Constant', value_t=torch.tensor([4])), # ends
+            g.op('Constant', value_t=torch.tensor([0])), # axes
+        )
+        output_shape = g.op('Concat', BC, HW, axis_i=0)
+        return g.op('Resize',
+            x,
+            empty_roi,
+            empty_scales,
+            output_shape,
+            coordinate_transformation_mode_s='pytorch_half_pixel',
+            cubic_coeff_a_f=-0.75,
+            mode_s='linear',
+            nearest_mode_s="floor")
+
+
+
+
 class CustomOnnxResizeByFactorOp(Function):
     """
     This implements resize by scale_factor. Unlike PyTorch which can only export the scale_factor is a hardcoded int,
@@ -43,7 +84,9 @@ class CustomOnnxResizeToMatchSizeOp(Function):
     @staticmethod
     def forward(ctx, x, y):
         assert x.ndim == 4 and y.ndim == 4
-        return F.interpolate(x, y.shape[2:], mode='bilinear', align_corners=False)
+        t0 = y.shape[2:]
+        return F.interpolate(x, t0, mode='bilinear', align_corners=False)
+        #return F.interpolate(x, y.shape[2:], mode='bilinear', align_corners=False)
     
     @staticmethod
     def symbolic(g, x, y):
@@ -61,7 +104,16 @@ class CustomOnnxResizeToMatchSizeOp(Function):
             g.op('Constant', value_t=torch.tensor([4])), # ends
             g.op('Constant', value_t=torch.tensor([0])), # axes
         )
+        '''
+        print('type(HW) :', type(HW)); # exit(0)
+        print('BC :', BC);  #exit(0)
+        print('HW :', HW);  #exit(0)
+        '''
         output_shape = g.op('Concat', BC, HW, axis_i=0)
+        '''
+        print('type(output_shape) :', type(output_shape));  #exit(0)
+        print('output_shape :', output_shape);  #exit(0)
+        '''
         return g.op('Resize',
             x,
             empty_roi,
