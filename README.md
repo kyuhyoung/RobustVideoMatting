@@ -37,6 +37,7 @@ All footage in the video are available in [Google Drive](https://drive.google.co
 
 <br>
 
+
 ## Download
 
 We recommend MobileNetv3 models for most use cases. ResNet50 models are the larger variant with small performance improvements. Our model is available on various inference frameworks. See [inference documentation](documentation/inference.md) for more instructions.
