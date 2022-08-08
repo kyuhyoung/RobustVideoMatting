@@ -1,5 +1,5 @@
+#   ceil_mode should be false sicne current Barracuda does NOT support AvgPool2D(ceil_mode = True)
 ceil_mode=false
-#ceil_mode=true
 for model in mobilenetv3
 do
     #for checkpoint in rvm_mobilenetv3.pth
