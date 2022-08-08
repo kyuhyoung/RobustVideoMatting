@@ -23,7 +23,7 @@ do
                         #for opset in 12 9
                         for opset in 11
                         do                        
-                               prephix=${checkpoint}_${precision}_${device}_opset_${opset}_ceil_mode_${ceil_mode}_leavittx_220728
+                            prephix=${checkpoint}_${precision}_${device}_opset_${opset}_ceil_mode_${ceil_mode}_leavittx_220728
                             out_export=${prephix}_${wh}_downsample_${downsample_ratio}.onnx
                             out_shape_infered=${prephix}_shape_infered_downsample_${downsample_ratio}_${wh}.onnx
                             python3 export_onnx.py --model-variant ${model} --checkpoint ${checkpoint}.pth --wh ${wh} --downsample-ratio ${downsample_ratio} --precision ${precision} --opset ${opset} --device ${device} --output ${out_export} --ceil_mode ${ceil_mode}
