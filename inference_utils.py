@@ -2,6 +2,7 @@
 #import pims
 import os
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
 from PIL import Image
@@ -81,7 +82,14 @@ class ImageSequenceReader(Dataset):
         with Image.open(os.path.join(self.path, self.files[idx])) as img:
             img.load()
         if self.transform is not None:
+            #print('111');   exit(0)     #   111
+            #print('type(img) b4 : {}'.format(type(img)));       #   PIL.PngImagePlugin.PngImageFile
+            #img = self.transform(img)
+            #print('torch.max(img) : {}, torch.min(img) : {}'.format(torch.max(img), torch.min(img)))    #   torch.max(img) : 1.0, torch.min(img) : 0.0
+            #print('type(img) after : {}'.format(type(img)));    #   torch.Tensor    #exit(0)
+            #exit(0)
             return self.transform(img)
+        #print('222');   exit(0)         #   This is NOT reached.
         return img
 
 

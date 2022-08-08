@@ -43,7 +43,7 @@ di_scale_height[quater]="270"
 #for seq_id in kinect_1920_1080_1
 #for seq_id in kinect_1920_1080_3 kinect_1920_1080_4
 #for idx_seq in 3 4
-for idx_seq in 4
+for idx_seq in 2
 do
     seq_id=kinect_1920_1080_${idx_seq}
     #dir_data=output/kinect/${seq_id}/modified
@@ -60,15 +60,15 @@ do
         for down_ratio in 0.25
         do
             #for precision in float32 float16
-            for precision in float32
-            #for precision in float16
+            #for precision in float32
+            for precision in float16
             do
                 #for is_segmentation in False True
                 #for is_segmentation in True
                 for is_segmentation in False
                 do
                     dir_out=output/${seq_id}_input_resize_${w_input}_${h_input}_downsample_ratio_${down_ratio}_precision_${precision}_is_segmentation_${is_segmentation}
-                    python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda --input-source ${dir_data} --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 0_255_0 --input-resize ${w_input} ${h_input} --downsample-ratio ${down_ratio} --precision ${precision} --is-segmentation ${is_segmentation}
+                    python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda --input-source ${dir_data} --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 255_0_0 --input-resize ${w_input} ${h_input} --downsample-ratio ${down_ratio} --precision ${precision} --is-segmentation ${is_segmentation}
                 done
             done    
         done

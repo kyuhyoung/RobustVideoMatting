@@ -88,12 +88,9 @@ def convert_video(model,
 
     # Initialize reader
     if os.path.isfile(input_source):
-        print('aaa')
         source = VideoReader(input_source, output_original, transform)
     else:
-        print('bbb')
         source = ImageSequenceReader(input_source, transform)
-    exit(0)
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
     
     # Initialize writers
@@ -154,6 +151,7 @@ def convert_video(model,
                 if is_segmentation:
                     seg, *rec = model(src, *rec, downsample_ratio, is_segmentation)
                 else:      
+                    '''
                     if idx <= 3:
                         print('idx : {}'.format(idx))
                         print('\tsrc.shape : {}'.format(src.shape))
@@ -169,7 +167,9 @@ def convert_video(model,
                                 #       iR : 1, type(rec_mem) b4 : <class 'NoneType'>
                                 #       iR : 2, type(rec_mem) b4 : <class 'NoneType'>
                                 #       iR : 3, type(rec_mem) b4 : <class 'NoneType'>
+                    '''
                     fgr, pha, *rec = model(src, *rec, downsample_ratio, is_segmentation)
+                    '''
                     if idx <= 3:
                         print('\tfgr.shape : {}, pha.shape : {}'.format(fgr.shape, pha.shape))
                         #   for 1920 x 1080 and any downsample_ratio
@@ -189,6 +189,7 @@ def convert_video(model,
                             #       iR : 3, rec_mem.shape after : torchSize([1, 64, 17, 30])
                     else:
                         exit(0)
+                    '''    
                 sec_inf = time.time() - start_inf
 
                 if output_foreground is not None:
@@ -258,8 +259,7 @@ class Converter:
         self.precision = torch.float32 if precision == 'float32' else torch.float16
         self.model = MattingNetwork(variant).eval().to(device, self.precision)
         self.model.load_state_dict(torch.load(checkpoint, map_location=device))
-        self.model = torch.jit.script(self.model)
-        self.model = torch.jit.freeze(self.model)
+        self.model = torch.jit.script(self.model);  self.model = torch.jit.freeze(self.model)
         self.device = device
     
     def convert(self, *args, **kwargs):

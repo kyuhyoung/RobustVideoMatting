@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn
 from torchvision.models.mobilenetv3 import MobileNetV3, InvertedResidualConfig
@@ -34,8 +35,10 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         del self.classifier
         
     def forward_single_frame(self, x):
+        #print('torch.max(x) b4 : {}, torch.min(x) b4 : {}'.format(torch.max(x), torch.min(x)))          #   torch.max(x) : 1.0, torch.min(x) : 0.0
         x = normalize(x, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        
+        #print('torch.max(x) after : {}, torch.min(x) after : {}'.format(torch.max(x), torch.min(x)))    #   torch.max(x) : 2.64, torch.min(x) : -2.12
+        #exit(0);
         x = self.features[0](x)
         x = self.features[1](x)
         f1 = x
