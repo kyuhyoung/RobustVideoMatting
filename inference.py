@@ -140,6 +140,7 @@ def convert_video(model,
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
             li_sec_inf = list();    li_sec_total = list()
+            print('output_composition : {}'.format(output_composition));
             for idx, src in enumerate(reader):
                 start_total = time.time()
                 if downsample_ratio is None:
@@ -199,18 +200,23 @@ def convert_video(model,
                 if output_composition is not None:
                     if output_type == 'video':
                         if is_segmentation:
+                            #print('111')
                             #com = src * seg.sigmoid()
                             com = src * seg + bgr * (1 - seg)
                         else:
+                            #print('222')
                             com = fgr * pha + bgr * (1 - pha)
                     else:
                         if is_segmentation:
+                            #print('333')
                             #com = src * seg.sigmoid()
                             com = src * seg + bgr * (1 - seg)
                         else:
-                            fgr = fgr * pha.gt(0)
+                            #print('444')                        #   This is taken  
+                            #fgr = fgr * pha.gt(0)
                             #com = torch.cat([fgr, pha], dim=-3)
                             com = fgr * pha + bgr * (1 - pha)
+                    #exit(0);                                    #   444
                     writer_com.write(com[0])
                 
                 bar.update(src.size(1))

@@ -1,4 +1,4 @@
-: << 'END'
+#: << 'END'
 #################################################################################################
 #
 #   train 
@@ -6,10 +6,10 @@
 #   original training. 
 #
 python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20
-END
+#END
 #
 #
-#: << 'END'
+: << 'END'
 #################################################################################################
 #   inference 
 #
@@ -86,7 +86,7 @@ done
 #vid_title=long_hair_youtube_21
 #dir_test=test/${vid_title}
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_test}/imgs_ori --output-type png_sequence --output-composition ${dir_test}/imgs_comp --str-rgb-bg 255_0_0
-#END
+END
 #
 #
 : << 'END'
