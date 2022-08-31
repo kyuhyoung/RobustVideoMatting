@@ -7,6 +7,34 @@ from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
 from PIL import Image
 
+def is_this_empty_string(strin):
+    return (strin in (None, '')) or (not strin.strip())
+
+def get_list_of_file_path_under_1st_with_3rd_extension(direc, include_subdirectories, ext = ''):
+    li_path_total = []
+    is_extension_given = not (is_this_empty_string(ext))
+    if include_subdirectories:
+        for dirpath, dirnames, filenames in os.walk(os.path.expanduser(direc)):
+            n_file_1 = len(filenames)
+            if n_file_1:
+                if is_extension_given:
+                    li_path = [os.path.join(dirpath, f) for f in filenames if f.lower().endswith(ext.lower())]
+                else:
+                    li_path = [os.path.join(dirpath, f) for f in filenames]
+                n_file_2 = len(li_path)
+                if n_file_2:
+                    li_path_total += li_path
+    else:
+        for name_file_dir in os.listdir(direc):
+            path_file_dir = os.path.join(direc, name_file_dir)
+            if os.path.isfile(path_file_dir):
+                if is_extension_given:
+                    if name_file_dir.lower().endswith(ext.lower()):
+                        li_path_total.append(path_file_dir)
+                else:
+                    li_path_total.append(path_file_dir)
+    return sorted(li_path_total)
+
 
 class VideoReader(Dataset):
     def __init__(self, path, dir_img, transform=None):
@@ -66,9 +94,10 @@ class VideoWriter:
 
 
 class ImageSequenceReader(Dataset):
-    def __init__(self, path, transform=None):
+    def __init__(self, path, ext, transform=None):
         self.path = path
-        self.files = sorted(os.listdir(path))
+        #self.files = sorted(os.listdir(path))
+        self.files = get_list_of_file_path_under_1st_with_3rd_extension(path, False, ext)
         #print('path :', path);
         #print('self.files :', self.files);  exit(0)
         self.transform = transform
@@ -77,17 +106,21 @@ class ImageSequenceReader(Dataset):
         return len(self.files)
     
     def __getitem__(self, idx):
-        #t0 = os.path.join(self.path, self.files[idx])
-        #print('t0 :', t0);  exit(0)
+        #'''
+        t0 = os.path.join(self.path, self.files[idx])
+        print('t0 :', t0);  #exit(0)
+        #'''
         with Image.open(os.path.join(self.path, self.files[idx])) as img:
             img.load()
         if self.transform is not None:
+            '''
             #print('111');   exit(0)     #   111
-            #print('type(img) b4 : {}'.format(type(img)));       #   PIL.PngImagePlugin.PngImageFile
-            #img = self.transform(img)
-            #print('torch.max(img) : {}, torch.min(img) : {}'.format(torch.max(img), torch.min(img)))    #   torch.max(img) : 1.0, torch.min(img) : 0.0
-            #print('type(img) after : {}'.format(type(img)));    #   torch.Tensor    #exit(0)
-            #exit(0)
+            print('type(img) b4 : {}'.format(type(img)));       #   PIL.PngImagePlugin.PngImageFile
+            img = self.transform(img)
+            print('torch.max(img) : {}, torch.min(img) : {}'.format(torch.max(img), torch.min(img)))    #   torch.max(img) : 1.0, torch.min(img) : 0.0
+            print('type(img) after : {}'.format(type(img)));    #   torch.Tensor    #exit(0)
+            exit(0)
+            '''
             return self.transform(img)
         #print('222');   exit(0)         #   This is NOT reached.
         return img

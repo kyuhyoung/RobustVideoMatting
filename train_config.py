@@ -34,35 +34,48 @@ Background Video Train/Valid
 DATA_PATHS = {
     
     'videomatte': {
-        'train': '../matting-data/VideoMatte240K_JPEG_SD/train',
-        'valid': '../matting-data/VideoMatte240K_JPEG_SD/valid',
+        #'train': '../matting-data/VideoMatte240K_JPEG_SD/train',
+        #'valid': '../matting-data/VideoMatte240K_JPEG_SD/valid',
+        'train': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/train',
+        'valid': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/valid',
     },
     'imagematte': {
         'train': '../matting-data/ImageMatte/train',
         'valid': '../matting-data/ImageMatte/valid',
     },
     'background_images': {
-        'train': '../matting-data/Backgrounds/train',
-        'valid': '../matting-data/Backgrounds/valid',
+        #'train': '../matting-data/Backgrounds/train',
+        #'valid': '../matting-data/Backgrounds/valid',
+        'train': '/data/background_matting_v2/Backgrounds_Validation/Backgrounds/train',
+        'valid': '/data/background_matting_v2/Backgrounds_Validation/Backgrounds/valid',
     },
     'background_videos': {
-        'train': '../matting-data/BackgroundVideos/train',
-        'valid': '../matting-data/BackgroundVideos/valid',
+        #'train': '../matting-data/BackgroundVideos/train',
+        #'valid': '../matting-data/BackgroundVideos/valid',
+        'train': '/data/dvm/BackgroundVideosTrain/train',
+        'valid': '/data/dvm/BackgroundVideosTrain/valid',
     },
     
     
     'coco_panoptic': {
-        'imgdir': '../matting-data/coco/train2017/',
-        'anndir': '../matting-data/coco/panoptic_train2017/',
-        'annfile': '../matting-data/coco/annotations/panoptic_train2017.json',
+        #'imgdir': '../matting-data/coco/train2017/',
+        'imgdir': '/data/coco/train2017/',
+        #'anndir': '../matting-data/coco/panoptic_train2017/',
+        'anndir': '/data/coco/panoptic_annotations_trainval2017/annotations/panoptic_train2017',
+        #'annfile': '../matting-data/coco/annotations/panoptic_train2017.json',
+        'annfile': '/data/coco/panoptic_annotations_trainval2017/annotations/panoptic_train2017.json',
     },
     'spd': {
-        'imgdir': '../matting-data/SuperviselyPersonDataset/img',
-        'segdir': '../matting-data/SuperviselyPersonDataset/seg',
+        #'imgdir': '../matting-data/SuperviselyPersonDataset/img',
+        'imgdir': '/data/SuperviselyPersonDataset/img',
+        #'segdir': '../matting-data/SuperviselyPersonDataset/seg',
+        'segdir': '/data/SuperviselyPersonDataset/seg',
     },
     'youtubevis': {
-        'videodir': '../matting-data/YouTubeVIS/train/JPEGImages',
-        'annfile': '../matting-data/YouTubeVIS/train/instances.json',
+        #'videodir': '../matting-data/YouTubeVIS/train/JPEGImages',
+        'videodir': '/data/YouTubeVIS/2021/train/JPEGImages',
+        #'annfile': '../matting-data/YouTubeVIS/train/instances.json',
+        'annfile': '/data/YouTubeVIS/2021/train/instances.json',
     }
     
 }

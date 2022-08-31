@@ -80,6 +80,8 @@ import argparse
 import torch
 import random
 import os
+import numpy as np
+import cv2
 from torch import nn
 from torch import distributed as dist
 from torch import multiprocessing as mp
@@ -341,6 +343,8 @@ class Trainer:
             self.writer = SummaryWriter(self.args.log_dir)
         
     def train(self):
+        
+        tu_fgr_pha_bgr = None
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
             self.epoch = epoch
             self.step = epoch * len(self.dataloader_lr_train)
@@ -349,6 +353,7 @@ class Trainer:
                 self.validate()
             
             self.log(f'Training epoch: {epoch}')
+            i_batch = 0
             for true_fgr, true_pha, true_bgr in tqdm(self.dataloader_lr_train, disable=self.args.disable_progress_bar, dynamic_ncols=True):
                 # Low resolution pass
                 self.train_mat(true_fgr, true_pha, true_bgr, downsample_ratio=1, tag='lr')
@@ -366,11 +371,21 @@ class Trainer:
                     true_img, true_seg = self.load_next_seg_image_sample()
                     self.train_seg(true_img.unsqueeze(1), true_seg.unsqueeze(1), log_label='seg_image')
                     
+                #print('self.step : {}, self.args.checkpoint_save_interval : {}'.format(self.step, self.args.checkpoint_save_interval))
                 if self.step % self.args.checkpoint_save_interval == 0:
                     self.save()
-                    
-                self.step += 1
                 
+                if None == tu_fgr_pha_bgr:
+                    tu_fgr_pha_bgr = (true_fgr, true_pha, true_bgr)
+                
+                if i_batch % self.args.checkpoint_save_interval == 0:
+                #if i_batch % 30 == 0:
+                    self.check_progress(epoch, i_batch, tu_fgr_pha_bgr)
+                    print('Train check is done at self.step : {}'.format(self.step))
+                
+                self.step += 1
+                i_batch += 1
+
     def train_mat(self, true_fgr, true_pha, true_bgr, downsample_ratio, tag):
         true_fgr = true_fgr.to(self.rank, non_blocking=True)
         true_pha = true_pha.to(self.rank, non_blocking=True)
@@ -483,7 +498,48 @@ class Trainer:
             img = img.reshape(B, T, *img.shape[1:])
             results.append(img)
         return results
-    
+   
+    def check_progress(self, i_epoch, i_batch, tu_fgr_pha_bgr):
+        dir_check = 'output/train_check/'
+        self.model_ddp.eval()
+        with torch.no_grad():
+            solid_rgb = None
+            true_fgr, true_pha, true_bgr = tu_fgr_pha_bgr
+            true_fgr = true_fgr.to(self.rank, non_blocking=True)
+            true_pha = true_pha.to(self.rank, non_blocking=True)
+            true_bgr = true_bgr.to(self.rank, non_blocking=True)
+            true_src = true_fgr * true_pha + true_bgr * (1 - true_pha)
+            batch_size = true_src.size(0)
+            pred_fgr, pred_pha = self.model(true_src)[:2]
+            #print('batch_size : {}'.format(batch_size))
+            #print('type(pred_fgr) : {}, pred_fgr.shape : {}'.format(type(pred_fgr), pred_fgr.shape))
+            #print('type(pred_pha) : {}, pred_pha.shape : {}'.format(type(pred_pha), pred_pha.shape))
+            #print('torch.min(pred_fgr) : {}, torch.max(pred_fgr) : {}'.format(torch.min(pred_fgr), torch.max(pred_fgr)))
+            #print('torch.min(pred_pha) : {}, torch.max(pred_pha) : {}'.format(torch.min(pred_pha), torch.max(pred_pha)))
+            n_frm = pred_fgr.shape[1]; height = pred_fgr.shape[3]; width = pred_fgr.shape[4]
+            rgb = (1.0, 0.0, 0.0)
+            t0 = np.full((batch_size, n_frm, height, width, len(rgb)), rgb)
+            t1 = torch.from_numpy(t0)
+            #print('type(t1) : {}, t1.shape : {}'.format(type(t1), t1.shape))
+            solid_rgb = t1.permute(0, 1, 4, 2, 3)
+            #print('type(solid_rgb) : {}, solid_rgb.shape : {}'.format(type(solid_rgb), solid_rgb.shape))
+            solid_rgb = solid_rgb.to(self.rank, non_blocking=True)
+            pred_src = pred_fgr * pred_pha + solid_rgb * (1 - pred_pha)
+            for i_sam in range(batch_size):
+                for i_frm in range(n_frm): 
+                    fn_check = dir_check + '{:02d}_{:05d}_{:01d}_{:02d}'.format(i_epoch, i_batch, i_sam, i_frm) + '.png'
+                    t2 = pred_src[i_sam, i_frm]
+                    print('type(t2) : {}, t2.shape : {}'.format(type(t2), t2.shape))
+                    t3 = t2.permute(1, 2, 0)
+                    print('type(t3) : {}, t3.shape : {}'.format(type(t3), t3.shape))
+                    t4 = t3.cpu().detach().numpy()
+                    t5 = 255 * t4
+                    t6 = np.uint8(t5)
+                    t7 = cv2.cvtColor(t6, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(fn_check, t7)
+        self.model_ddp.train()
+            
+            
     def save(self):
         if self.rank == 0:
             os.makedirs(self.args.checkpoint_dir, exist_ok=True)

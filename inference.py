@@ -48,6 +48,7 @@ def convert_video(model,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
                   progress: bool = True,
+                  ext: str = None,
                   device: Optional[str] = None,
                   #dtype: Optional[torch.dtype] = None):
                   is_segmentation: bool = False, dtype: Optional[torch.dtype] = None):
@@ -90,7 +91,8 @@ def convert_video(model,
     if os.path.isfile(input_source):
         source = VideoReader(input_source, output_original, transform)
     else:
-        source = ImageSequenceReader(input_source, transform)
+        assert ext is not None, 'Image file extension must be given since the input source is image sequence.'
+        source = ImageSequenceReader(input_source, ext, transform)
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
     
     # Initialize writers
@@ -227,13 +229,14 @@ def convert_video(model,
                     li_sec_inf.append(sec_inf)
                     sec_total = time.time() - start_total
                     li_sec_total.append(sec_total)
-            avg_ms_inf = 1000.0 * sum(li_sec_inf) / len(li_sec_inf)
-            #print('len(li_sec_inf) :', len(li_sec_inf));    exit(0)
-            avg_fps_inf = 1000.0 / avg_ms_inf
-            avg_fps_total = float(len(li_sec_total)) / float(sum(li_sec_total))
-            fn_fps = os.path.join(output_composition, 'avg_ms_inference-{}_avg_fps_inference-{:.1f}_avg_fps_total-{:.1f}.txt'.format(int(avg_ms_inf), avg_fps_inf, avg_fps_total))
-            open(fn_fps, 'w').close();
-            print('avg_ms_inf : {}, avg_fps_inf : {}, avg_fps_total : {}'.format(avg_ms_inf, avg_fps_inf, avg_fps_total))
+            if li_sec_inf:
+                avg_ms_inf = 1000.0 * sum(li_sec_inf) / len(li_sec_inf)
+                #print('len(li_sec_inf) :', len(li_sec_inf));    exit(0)
+                avg_fps_inf = 1000.0 / avg_ms_inf
+                avg_fps_total = float(len(li_sec_total)) / float(sum(li_sec_total))
+                fn_fps = os.path.join(output_composition, 'avg_ms_inference-{}_avg_fps_inference-{:.1f}_avg_fps_total-{:.1f}.txt'.format(int(avg_ms_inf), avg_fps_inf, avg_fps_total))
+                open(fn_fps, 'w').close();
+                print('avg_ms_inf : {}, avg_fps_inf : {}, avg_fps_total : {}'.format(avg_ms_inf, avg_fps_inf, avg_fps_total))
     finally:
         # Clean up
         if output_composition is not None:
@@ -286,6 +289,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-composition', type=str)
     parser.add_argument('--output-original', type=str)
     parser.add_argument('--str-rgb-bg', type=str)
+    parser.add_argument('--ext', type=str)
     parser.add_argument('--output-alpha', type=str)
     parser.add_argument('--output-foreground', type=str)
     parser.add_argument('--output-type', type=str, required=True, choices=['video', 'png_sequence'])
@@ -312,6 +316,7 @@ if __name__ == '__main__':
         output_video_mbps=args.output_video_mbps,
         seq_chunk=args.seq_chunk,
         num_workers=args.num_workers,
+        ext = args.ext,
         is_segmentation = str2bool(args.is_segmentation), progress=not args.disable_progress
         #progress=not args.disable_progress
     )

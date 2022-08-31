@@ -26,6 +26,8 @@ class YouTubeVISDataset(Dataset):
                 video_id = ann['video_id']
                 if video_id not in self.masks:
                     self.masks[video_id] = [[] for _ in range(len(ann['segmentations']))]
+                    print('video_id : {}'.format(video_id));    #exit(0)
+                    print('self.masks[video_id] : {}'.format(self.masks[video_id]));    exit(0)
                 for frame, mask in zip(self.masks[video_id], ann['segmentations']):
                     if mask is not None:
                         frame.append(mask)
