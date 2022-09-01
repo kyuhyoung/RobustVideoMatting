@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import torch
+import shutil
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
 from PIL import Image
@@ -35,6 +36,20 @@ def get_list_of_file_path_under_1st_with_3rd_extension(direc, include_subdirecto
                     li_path_total.append(path_file_dir)
     return sorted(li_path_total)
 
+
+def remove_directory(direc):
+    shutil.rmtree(direc)
+
+def is_this_existing_directory(path_dir):
+    return os.path.exists(path_dir) and os.path.isdir(path_dir)
+
+def rm_directory_if_exist(direc):
+    if is_this_existing_directory(direc):
+        remove_directory(direc)    
+
+def rm_and_mkdir(direc):
+    rm_directory_if_exist(direc)
+    os.makedirs(direc)
 
 class VideoReader(Dataset):
     def __init__(self, path, dir_img, transform=None):
@@ -94,23 +109,29 @@ class VideoWriter:
 
 
 class ImageSequenceReader(Dataset):
-    def __init__(self, path, ext, transform=None):
-        self.path = path
+    def __init__(self, path, li_ext, shall_return_path, transform=None):
+        #self.path = path
         #self.files = sorted(os.listdir(path))
-        self.files = get_list_of_file_path_under_1st_with_3rd_extension(path, False, ext)
+        self.files = []
+        for ext in li_ext:
+            self.files += get_list_of_file_path_under_1st_with_3rd_extension(path, False, ext)
         #print('path :', path);
         #print('self.files :', self.files);  exit(0)
+        self.shall_return_path = shall_return_path
         self.transform = transform
         
     def __len__(self):
         return len(self.files)
     
     def __getitem__(self, idx):
-        #'''
+        '''
         t0 = os.path.join(self.path, self.files[idx])
-        print('t0 :', t0);  #exit(0)
-        #'''
+        print('self.path : {}'.format(self.path));  #exit(0)
+        print('self.files[idx] : {}'.format(self.files[idx]));  #exit(0)
+        print('t0 :', t0);  exit(0)
         with Image.open(os.path.join(self.path, self.files[idx])) as img:
+        '''
+        with Image.open(self.files[idx]) as img:
             img.load()
         if self.transform is not None:
             '''
@@ -121,9 +142,12 @@ class ImageSequenceReader(Dataset):
             print('type(img) after : {}'.format(type(img)));    #   torch.Tensor    #exit(0)
             exit(0)
             '''
-            return self.transform(img)
+            #return {'img': self.transform(img), 'path': self.files[idx]} if self.shall_return_path else self.transform(img)
+            return self.transform(img), self.files[idx] if self.shall_return_path else self.transform(img)
+            #return self.transforms(img), img if self.shall_return_path else self.transforms(img)
         #print('222');   exit(0)         #   This is NOT reached.
-        return img
+        #return {'img': img, 'path': self.files[idx]} if self.shall_return_path else img
+        return img, self.files[idx] if self.shall_return_path else img
 
 
 class ImageSequenceWriter:
@@ -131,13 +155,18 @@ class ImageSequenceWriter:
         self.path = path
         self.extension = extension
         self.counter = 0
-        os.makedirs(path, exist_ok=True)
+        rm_and_mkdir(path)
+        #os.makedirs(path, exist_ok=True)
     
-    def write(self, frames):
+    def write(self, frames, li_id):
         # frames: [T, C, H, W]
         for t in range(frames.shape[0]):
-            to_pil_image(frames[t]).save(os.path.join(
-                self.path, str(self.counter).zfill(5) + '.' + self.extension))
+            if li_id:
+                aidi = li_id[t]
+            else:
+                aidi = str(self.counter).zfill(5)
+            #to_pil_image(frames[t]).save(os.path.join(self.path, str(self.counter).zfill(5) + '.' + self.extension))
+            to_pil_image(frames[t]).save(os.path.join(self.path, aidi + '.' + self.extension))
             self.counter += 1
             
     def close(self):

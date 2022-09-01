@@ -99,9 +99,10 @@ END
 #   inference on image seq. and save the composition and alpha to image seq.
 vid_title=long_hair_youtube_21
 #dir_test=test/${vid_title}
-dir_1=/data/k-hairstyle/Training/0002.mqset_mini
+#dir_1=/data/k-hairstyle/Training/0002.mqset_mini
+dir_1=/data/k-hairstyle/Training/0002.mqset
 command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
-ext=jpg
+ext=jpg_jpeg
 #echo "command_1 : ${command_1}"
 #res_1=`${command_1}`
 #echo "result of command_1 : " ${res_1}

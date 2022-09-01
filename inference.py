@@ -34,6 +34,9 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')    
     
 
+def get_exact_file_name_from_path(str_path):
+    return os.path.splitext(os.path.basename(str_path))[0]
+
 def convert_video(model,
                   input_source: str,
                   input_resize: Optional[Tuple[int, int]] = None,
@@ -92,7 +95,9 @@ def convert_video(model,
         source = VideoReader(input_source, output_original, transform)
     else:
         assert ext is not None, 'Image file extension must be given since the input source is image sequence.'
-        source = ImageSequenceReader(input_source, ext, transform)
+        li_ext = [strin.strip() for strin in ext.split('_')]
+        shall_return_path = 'png_sequence' == output_type
+        source = ImageSequenceReader(input_source, li_ext, shall_return_path, transform)
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
     
     # Initialize writers
@@ -139,15 +144,30 @@ def convert_video(model,
     
     try:
         with torch.no_grad():
+            print('output_composition : {}'.format(output_composition));
             bar = tqdm(total=len(source), disable=not progress, dynamic_ncols=True)
             rec = [None] * 4
             li_sec_inf = list();    li_sec_total = list()
-            print('output_composition : {}'.format(output_composition));
-            for idx, src in enumerate(reader):
+            li_id = None
+            for idx, source in enumerate(reader):
+                #print('idx : {}'.format(idx))
                 start_total = time.time()
+                if output_type == 'png_sequence':
+                    src, li_path = source
+                    '''
+                    print('type(src) : {}'.format(type(src)))                   #   torch.Tensor
+                    print('type(li_path) : {}'.format(type(li_path)))           #   list
+                    print('src.shape : {}'.format(src.shape))                   #   1, 3, 512, 512
+                    print('len(li_path) : {}'.format(len(li_path)));  #exit(0)  #   1
+                    print('li_path[0] : {}'.format(li_path[0]));  exit(0)   #   1
+                    '''
+                    li_id = [get_exact_file_name_from_path(path) for path in li_path]
+                    #print('li_path : {}'.format(li_path))
+                    #print('li_id : {}'.format(li_id))
+                else:
+                    src = source
                 if downsample_ratio is None:
                     downsample_ratio = auto_downsample_ratio(*src.shape[2:])
-            
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0) # [B, T, C, H, W]
                 start_inf = time.time()   
                 #fgr, pha, *rec = model(src, *rec, downsample_ratio)
@@ -198,7 +218,7 @@ def convert_video(model,
                 if output_foreground is not None:
                     writer_fgr.write(fgr[0])
                 if output_alpha is not None:
-                    writer_pha.write(pha[0])
+                    writer_pha.write(pha[0], li_id)
                 if output_composition is not None:
                     if output_type == 'video':
                         if is_segmentation:
@@ -219,7 +239,7 @@ def convert_video(model,
                             #com = torch.cat([fgr, pha], dim=-3)
                             com = fgr * pha + bgr * (1 - pha)
                     #exit(0);                                    #   444
-                    writer_com.write(com[0])
+                    writer_com.write(com[0], li_id)
                 
                 bar.update(src.size(1))
                 #if 0 <= idx:
@@ -229,6 +249,7 @@ def convert_video(model,
                     li_sec_inf.append(sec_inf)
                     sec_total = time.time() - start_total
                     li_sec_total.append(sec_total)
+            bar.close()
             if li_sec_inf:
                 avg_ms_inf = 1000.0 * sum(li_sec_inf) / len(li_sec_inf)
                 #print('len(li_sec_inf) :', len(li_sec_inf));    exit(0)
@@ -300,7 +321,6 @@ if __name__ == '__main__':
     parser.add_argument('--is-segmentation', type=str, default = 'False')
     parser.add_argument('--precision', type=str, default = 'float32')
     args = parser.parse_args()
-    
     #converter = Converter(args.variant, args.checkpoint, args.device)
     converter = Converter(args.variant, args.checkpoint, args.device, args.precision)
     converter.convert(
