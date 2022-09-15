@@ -32,14 +32,16 @@ Background Video Train/Valid
 
 
 DATA_PATHS = {
-    
     'videomatte': {
         #'train': '../matting-data/VideoMatte240K_JPEG_SD/train',
         #'valid': '../matting-data/VideoMatte240K_JPEG_SD/valid',
-        'train': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/train',
-        'valid': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/valid',
+        'train_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/train',
+        'valid_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/valid',
+        'train_hair': '/data/k-hairstyle/Training/0002.mqset',
+        'valid_hair': '/data/k-hairstyle/Validation/0002.mqset',
     },
     'imagematte': {
+        #   ignored for hair matting
         'train': '../matting-data/ImageMatte/train',
         'valid': '../matting-data/ImageMatte/valid',
     },
@@ -55,8 +57,7 @@ DATA_PATHS = {
         'train': '/data/dvm/BackgroundVideosTrain/train',
         'valid': '/data/dvm/BackgroundVideosTrain/valid',
     },
-    
-    
+    #   for original RVM use coco_panoptic and for hair use figaro1k    
     'coco_panoptic': {
         #'imgdir': '../matting-data/coco/train2017/',
         'imgdir': '/data/coco/train2017/',
@@ -65,17 +66,29 @@ DATA_PATHS = {
         #'annfile': '../matting-data/coco/annotations/panoptic_train2017.json',
         'annfile': '/data/coco/panoptic_annotations_trainval2017/annotations/panoptic_train2017.json',
     },
+    #   for hair matting, use figaro1k instead of coco_panoptic
+    'figaro1k': {
+        'imgdir': '/data/Figaro1k/Original/Training',
+        'segdir': '/data/Figaro1k/GT/Training',
+    },
+    #   for original RVM use spd and for hair use CelebA-HQ-img    
     'spd': {
         #'imgdir': '../matting-data/SuperviselyPersonDataset/img',
         'imgdir': '/data/SuperviselyPersonDataset/img',
         #'segdir': '../matting-data/SuperviselyPersonDataset/seg',
         'segdir': '/data/SuperviselyPersonDataset/seg',
     },
+    #   for hair matting, use celeb_a_mask_hq instead of spd
+    'celeb_a_mask_hq': {
+        #'imgdir': '../matting-data/SuperviselyPersonDataset/img',
+        'rootdir': '/data/CelebAMask-HQ',
+        #'segdir': '../matting-data/SuperviselyPersonDataset/seg',
+        #'segdir': '/data/CelebAMask-HQ/CelebA-HQ-mask-anno',
+    },
     'youtubevis': {
         #'videodir': '../matting-data/YouTubeVIS/train/JPEGImages',
         'videodir': '/data/YouTubeVIS/2021/train/JPEGImages',
         #'annfile': '../matting-data/YouTubeVIS/train/instances.json',
         'annfile': '/data/YouTubeVIS/2021/train/instances.json',
-    }
-    
+    },
 }

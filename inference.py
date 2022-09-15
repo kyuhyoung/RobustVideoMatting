@@ -20,7 +20,7 @@ from torchvision import transforms
 from typing import Optional, Tuple
 from tqdm.auto import tqdm
 
-from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter
+from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, get_list_of_file_path_under_1st_with_3rd_extension
 
 
 def str2bool(v):
@@ -36,6 +36,16 @@ def str2bool(v):
 
 def get_exact_file_name_from_path(str_path):
     return os.path.splitext(os.path.basename(str_path))[0]
+
+def check_if_there_is_image_files_4_given_extension_when_input_source_is_image_seqeunce(file_or_dir, ext):
+    if not os.path.isfile(file_or_dir):
+        assert ext is not None, 'Image file extension must be given since the input source is image sequence.'
+        li_ext = [strin.strip() for strin in ext.split('_')]
+        li_fn = []
+        for ext in li_ext:
+            li_fn += get_list_of_file_path_under_1st_with_3rd_extension(file_or_dir, False, ext)
+        assert li_fn, 'There is NO image files whose extension is {} under {}'.format(li_ext, file_or_dir)   
+            
 
 def convert_video(model,
                   input_source: str,
@@ -98,6 +108,7 @@ def convert_video(model,
         li_ext = [strin.strip() for strin in ext.split('_')]
         shall_return_path = 'png_sequence' == output_type
         source = ImageSequenceReader(input_source, li_ext, shall_return_path, transform)
+
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
     
     # Initialize writers
@@ -322,6 +333,10 @@ if __name__ == '__main__':
     parser.add_argument('--precision', type=str, default = 'float32')
     args = parser.parse_args()
     #converter = Converter(args.variant, args.checkpoint, args.device)
+    
+    check_if_there_is_image_files_4_given_extension_when_input_source_is_image_seqeunce(
+        args.input_source, args.ext)
+
     converter = Converter(args.variant, args.checkpoint, args.device, args.precision)
     converter.convert(
         input_source=args.input_source,

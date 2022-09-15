@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 import shutil
+import cv2
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_pil_image
 from PIL import Image
@@ -50,6 +51,123 @@ def rm_directory_if_exist(direc):
 def rm_and_mkdir(direc):
     rm_directory_if_exist(direc)
     os.makedirs(direc)
+
+def tensor_0_1_to_ndarray_0_255(tenser):
+    t3 = tenser.permute(1, 2, 0)
+    t4 = t3.cpu().detach().numpy()
+    t5 = 255 * t4
+    #t6 = np.uint8(t5)
+    return np.uint8(t5)
+    #t7 = cv2.cvtColor(t6, cv2.COLOR_BGR2RGB)
+
+def add_image_text(img, text, bgr_txt):
+    img = img.copy()
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    textsize = cv2.getTextSize(text, font, 1, 2)[0]
+    textX = (img.shape[1] - textsize[0]) // 2
+    textY = textsize[1] + 10
+    cv2.putText(img, text, (int(textX), int(textY)), font, 1, bgr_txt, 2, cv2.LINE_AA)
+    return img
+
+def compute_layout(li_hwc, is_horizontal, n_max_per_row_or_col, pxl_max_per_row_or_col, wh_interval):
+    
+    li_li_idx = []; li_li_xywh = [] 
+    if is_horizontal:
+        x_cur = 0;  y_cur = 0;   w_max = 0; h_max = 0;  w_sum = 0;  h_max_cur = -1
+        li_idx = [];    li_xywh = []   
+        for idx, hwc in enumerate(li_hwc):
+            #print('idx :', idx) 
+            h_cur, w_cur = hwc[0], hwc[1]
+            xywh = (x_cur, y_cur, w_cur, h_cur)
+            #print('xywh :', xywh)
+            is_over_pixel = pxl_max_per_row_or_col > 0 and (w_sum + w_cur) > pxl_max_per_row_or_col
+            is_over_slot = n_max_per_row_or_col > 0 and (len(li_idx) + 1) > n_max_per_row_or_col
+            if is_over_pixel or is_over_slot:
+                w_sum -= wh_interval[0]
+                w_max = max(w_max, w_sum) 
+                h_max += h_max_cur + wh_interval[1]
+                li_li_idx.append(li_idx)
+                li_li_xywh.append(li_xywh)
+                x_cur = 0;  y_cur = h_max  
+                xywh = (x_cur, y_cur, w_cur, h_cur)
+                li_idx = [idx];    li_xywh = [xywh];  
+                w_sum = w_cur + wh_interval[0];  h_max_cur = -1; 
+                x_cur = w_sum
+            else: 
+                w_sum += w_cur + wh_interval[0]
+                li_idx.append(idx)
+                li_xywh.append(xywh)
+                x_cur = w_sum;  
+            h_max_cur = max(h_max_cur, h_cur)
+        if 0 == h_max and 0 == w_max:
+            w_max = w_sum;  
+        li_li_idx.append(li_idx);   li_li_xywh.append(li_xywh) 
+        h_max += h_max_cur
+        w_max -= wh_interval[0];    #h_max -= wh_interval[1]        
+    else:
+        x_cur = 0;  y_cur = 0;  w_max = 0;  h_max = 0;  h_sum = 0;  w_max_cur = -1
+        li_idx = []; li_xywh = []
+        for idx, hwc in enumerate(li_hwc):
+            #print('idx :', idx) 
+            h_cur, w_cur = hwc[0], hwc[1]
+            xywh = (x_cur, y_cur, w_cur, h_cur)
+            #print('xywh :', xywh)
+            is_over_pixel = pxl_max_per_row_or_col > 0 and (h_sum + h_cur) > pxl_max_per_row_or_col
+            is_over_slot = n_max_per_row_or_col > 0 and (len(li_idx) + 1) > n_max_per_row_or_col
+            if is_over_pixel or is_over_slot:
+                h_sum -= wh_interval[1]
+                h_max = max(h_max, h_sum)
+                w_max += w_max_cur + wh_interval[0]
+                li_li_idx.append(li_idx)
+                li_li_xywh.append(li_xywh)
+                y_cur = 0;  x_cur = w_max
+                xywh = (x_cur, y_cur, w_cur, h_cur)
+                li_idx = [idx]; li_xywh = [xywh]
+                h_sum = h_cur + wh_interval[1]; w_max_cur = -1;
+                y_cur = h_sum
+            else:
+                h_sum += h_cur + wh_interval[1]
+                li_idx.append(idx)
+                li_xywh.append(xywh)
+                y_cur = h_sum
+            w_max_cur = max(w_max_cur, w_cur)
+        if 0 == w_max and 0 == h_max:
+            h_max = h_sum
+        li_li_idx.append(li_idx);   li_li_xywh.append(li_xywh)
+        w_max += w_max_cur
+        h_max -= wh_interval[1]
+    #print('li_li_idx :', li_li_idx);    print('li_li_xywh :', li_li_xywh);   #exit(0)
+    #print('h_max :', h_max);    print('w_max :', w_max);    #exit(0)
+    return (w_max, h_max), li_li_idx, li_li_xywh
+
+def is_this_empty_string(strin):
+    return (strin in (None, '')) or (not strin.strip())
+
+def concatenate_images(li_im, li_caption, is_horizontal, n_max_per_row_or_col, pxl_max_per_row_or_col, bgr_bg = (255, 255, 255), wh_interval = (0, 0), bgr_txt = (0, 0, 255)):
+   
+    if li_caption is not None:
+        n_caption = len(li_caption)
+    else:
+        n_caption = 0
+    li_hwc = [im.shape for im in li_im]
+    wh_max, li_li_idx, li_li_xywh = compute_layout(li_hwc, is_horizontal, n_max_per_row_or_col, pxl_max_per_row_or_col, wh_interval)
+    w_max, h_max = wh_max
+    im = np.zeros((h_max, w_max, 3), np.uint8); 
+    im[:] = bgr_bg
+    #   for each row
+    for li_idx, li_xywh in zip(li_li_idx, li_li_xywh): 
+        #   for each col
+        for idx, xywh in zip(li_idx, li_xywh):
+        #   paste into the region.
+            x_from = xywh[0];   y_from = xywh[1];   x_to = x_from + xywh[2];    y_to = y_from + xywh[3]
+            if n_caption and idx < n_caption and False == is_this_empty_string(li_caption[idx]):
+                im[y_from : y_to, x_from : x_to, :] = add_image_text(li_im[idx], li_caption[idx], bgr_txt)
+            else:    
+                im[y_from : y_to, x_from : x_to, :] = li_li_im[idx]
+    #cv2.imwrite('temp.bmp', im); exit(0)
+    return im    
+
+
 
 class VideoReader(Dataset):
     def __init__(self, path, dir_img, transform=None):
@@ -115,6 +233,7 @@ class ImageSequenceReader(Dataset):
         self.files = []
         for ext in li_ext:
             self.files += get_list_of_file_path_under_1st_with_3rd_extension(path, False, ext)
+        assert self.files, 'There is NO image files whose extension is {} under {}'.format(li_ext, path)   
         #print('path :', path);
         #print('self.files :', self.files);  exit(0)
         self.shall_return_path = shall_return_path

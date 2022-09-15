@@ -5,7 +5,7 @@
 #
 #   original training. 
 #
-python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20  
+python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --is_hair 
 #python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --checkpoint-save-interval 10 --disable-validation  
 END
 #
@@ -97,31 +97,34 @@ END
 #
 #: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
-vid_title=long_hair_youtube_21
 #dir_test=test/${vid_title}
 #dir_1=/data/k-hairstyle/Training/0002.mqset_mini
-dir_1=/data/k-hairstyle/Training/0002.mqset
+#dir_1=/data/k-hairstyle/Training/0002.mqset
+dir_1=/data/k-hairstyle/Validation/0002.mqset
 command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
 ext=jpg_jpeg
+#ext=jpeg
+#ext=jpeg
 #echo "command_1 : ${command_1}"
 #res_1=`${command_1}`
 #echo "result of command_1 : " ${res_1}
 #exit
 for d_hair_style in `${command_1}`
+#for d_hair_style in 0022
 do  
     echo "d_hair_style : ${d_hair_style}"
     command_2="find ${d_hair_style} -mindepth 1 -maxdepth 1 -type d"
     for d_id in `${command_2}`
+    #for d_id_only in 2503.JS218573 2738.JS376405 0775.CP500344 3232.JS634122 2283.JS048924
     do
+        #d_id=${dir_1}/${d_hair_style}/${d_id_only}
         echo "d_id : ${d_id}"
-        #exit
         python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-composition ${d_id}/rvm_comp --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
     done
 done    
 #END
     
 
-#
 #################################################################################################
 : << 'END'
 #
