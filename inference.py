@@ -255,8 +255,8 @@ def convert_video(model,
                 bar.update(src.size(1))
                 #if 0 <= idx:
                 #if 10 < idx:
-                if 20 < idx:
-                #if 40 < idx:
+                #if 20 < idx:
+                if 40 < idx:
                     li_sec_inf.append(sec_inf)
                     sec_total = time.time() - start_total
                     li_sec_total.append(sec_total)

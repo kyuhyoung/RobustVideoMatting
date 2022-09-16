@@ -26,7 +26,7 @@ END
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${vid_title}.mp4 --output-type png_sequence --output-composition ${vid_title}_composition_imgs --str-rgb-bg 255_0_0
 END
 #
-: << 'END'
+#: << 'END'
 #   inference on video and save the original and composition to image seq.
 #vid_title=butter
 #vid_title=long_hair_youtube
@@ -48,6 +48,7 @@ di_scale_height[quater]="270"
 #for seq_id in kinect_1920_1080_1
 #for seq_id in kinect_1920_1080_3 kinect_1920_1080_4
 #for idx_seq in 3 4
+ext=png
 for idx_seq in 2
 do
     seq_id=kinect_1920_1080_${idx_seq}
@@ -65,15 +66,15 @@ do
         for down_ratio in 0.25
         do
             #for precision in float32 float16
-            #for precision in float32
-            for precision in float16
+            for precision in float32
+            #for precision in float16
             do
                 #for is_segmentation in False True
                 #for is_segmentation in True
                 for is_segmentation in False
                 do
                     dir_out=output/${seq_id}_input_resize_${w_input}_${h_input}_downsample_ratio_${down_ratio}_precision_${precision}_is_segmentation_${is_segmentation}
-                    python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda --input-source ${dir_data} --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 255_0_0 --input-resize ${w_input} ${h_input} --downsample-ratio ${down_ratio} --precision ${precision} --is-segmentation ${is_segmentation}
+                    python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda --input-source ${dir_data} --ext ${ext} --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 255_0_0 --input-resize ${w_input} ${h_input} --downsample-ratio ${down_ratio} --precision ${precision} --is-segmentation ${is_segmentation}
                 done
             done    
         done
@@ -86,7 +87,7 @@ done
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/rgb_${seq_id}/imgs_ori --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 0_255_0 --input-resize ${w_input} ${h_input}
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/${seq_id}/imgs_ori --output-type video --output-composition ${dir_out}/imgs_comp --output-original ${dir_out}/imgs_ori --str-rgb-bg 255_0_0
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/vid_ori/${seq_id}.mp4 --output-type png_sequence --output-composition ${dir_out}/imgs_comp --output-original ${dir_out}/imgs_ori --str-rgb-bg 255_0_0
-END
+#END
 #
 : << 'END'
 #   inference on image seq. and save the composition to image seq.
@@ -95,7 +96,7 @@ END
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_test}/imgs_ori --output-type png_sequence --output-composition ${dir_test}/imgs_comp --str-rgb-bg 255_0_0
 END
 #
-#: << 'END'
+: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
 #dir_test=test/${vid_title}
 #dir_1=/data/k-hairstyle/Training/0002.mqset_mini
@@ -122,7 +123,7 @@ do
         python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-composition ${d_id}/rvm_comp --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
     done
 done    
-#END
+END
     
 
 #################################################################################################
