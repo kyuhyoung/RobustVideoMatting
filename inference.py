@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
 from tqdm.auto import tqdm
-
+from utils import get_exact_file_name_from_path
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, get_list_of_file_path_under_1st_with_3rd_extension
 
 
@@ -33,9 +33,6 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')    
     
-
-def get_exact_file_name_from_path(str_path):
-    return os.path.splitext(os.path.basename(str_path))[0]
 
 def check_if_there_is_image_files_4_given_extension_when_input_source_is_image_seqeunce(file_or_dir, ext):
     if not os.path.isfile(file_or_dir):
@@ -137,6 +134,13 @@ def convert_video(model,
             writer_pha = ImageSequenceWriter(output_alpha, 'png')
         if output_foreground is not None:
             writer_fgr = ImageSequenceWriter(output_foreground, 'png')
+    if output_composition is not None:
+        dir_fps = output_composition
+    else:
+        if output_alpha is not None:
+            dir_fps = output_alpha
+        else:
+            dir_fps = output_foreground
 
     # Inference
     model = model.eval()
@@ -266,7 +270,7 @@ def convert_video(model,
                 #print('len(li_sec_inf) :', len(li_sec_inf));    exit(0)
                 avg_fps_inf = 1000.0 / avg_ms_inf
                 avg_fps_total = float(len(li_sec_total)) / float(sum(li_sec_total))
-                fn_fps = os.path.join(output_composition, 'avg_ms_inference-{}_avg_fps_inference-{:.1f}_avg_fps_total-{:.1f}.txt'.format(int(avg_ms_inf), avg_fps_inf, avg_fps_total))
+                fn_fps = os.path.join(dir_fps, 'avg_ms_inference-{}_avg_fps_inference-{:.1f}_avg_fps_total-{:.1f}.txt'.format(int(avg_ms_inf), avg_fps_inf, avg_fps_total))
                 open(fn_fps, 'w').close();
                 print('avg_ms_inf : {}, avg_fps_inf : {}, avg_fps_total : {}'.format(avg_ms_inf, avg_fps_inf, avg_fps_total))
     finally:

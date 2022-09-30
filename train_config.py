@@ -35,10 +35,16 @@ DATA_PATHS = {
     'videomatte': {
         #'train': '../matting-data/VideoMatte240K_JPEG_SD/train',
         #'valid': '../matting-data/VideoMatte240K_JPEG_SD/valid',
-        'train_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/train',
-        'valid_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/valid',
-        'train_hair': '/data/k-hairstyle/Training/0002.mqset',
-        'valid_hair': '/data/k-hairstyle/Validation/0002.mqset',
+        #   for stage 1, 2
+        #'train_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/train',
+        #'valid_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_SD/valid',
+        #'train_hair': '/data/k-hairstyle/Training/0002.mqset',
+        #'valid_hair': '/data/k-hairstyle/Validation/0002.mqset',
+        #   for stage 3, 4
+        'train_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_HD/train',
+        'valid_portrait': '/data/VideoMatte240K/VideoMatte240K_JPEG_HD/valid',
+        'train_hair': '/data/k-hairstyle/Training/0003.rawset',
+        'valid_hair': '/data/k-hairstyle/Validation/0003.rawset',
     },
     'imagematte': {
         #   ignored for hair matting

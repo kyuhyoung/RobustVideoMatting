@@ -96,6 +96,8 @@ from torchvision.utils import make_grid
 from torchvision.transforms.functional import center_crop
 from tqdm import tqdm
 from inference_utils import rm_and_mkdir, tensor_0_1_to_ndarray_0_255, concatenate_images
+from utils import get_exact_file_name_from_path
+
 
 from dataset.videomatte import (
     VideoMatteDataset,
@@ -388,9 +390,11 @@ class Trainer:
         
     def train(self):
         
-        dir_check = 'output/train_check/'
-        rm_and_mkdir(dir_check)
         rm_and_mkdir(self.args.checkpoint_dir)
+        stage = get_exact_file_name_from_path(self.args.checkpoint_dir)
+        dir_check = 'output/train_check/{}'.format(stage)
+        #print('dir_check : {}'.format(dir_check)); exit(0)
+        rm_and_mkdir(dir_check)
 
         tu_fgr_pha_bgr_li_fn = None
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
@@ -408,8 +412,8 @@ class Trainer:
                     self.train_mat((true_fgr, true_pha_body, true_pha_hair, true_bgr), downsample_ratio=1, tag='lr')
                     # High resolution pass
                     if self.args.train_hr:
-                        true_fgr, true_pha, true_bgr = self.load_next_mat_hr_sample()
-                        self.train_mat((true_fgr, true_pha, true_bgr), downsample_ratio=self.args.downsample_ratio, tag='hr')
+                        true_fgr, true_pha_body, true_pha_hair, true_bgr, li_fn_fgr = self.load_next_mat_hr_sample()
+                        self.train_mat((true_fgr, true_pha_body, true_pha_hair, true_bgr), downsample_ratio=self.args.downsample_ratio, tag='hr')
                     # Segmentation pass
                     #if self.step % 2 == 0:
                     if False:
@@ -684,7 +688,7 @@ class Trainer:
                     #print('len(li_fn_fgr) : {}'.format(len(li_fn_fgr)));
                     #print('li_fn_fgr : {}'.format(li_fn_fgr));   #exit(0)
                     #print('i_frm {} / {}, li_fn_fgr[i_frm] : {}'.format(i_frm, n_frm, li_fn_fgr[i_frm]));   exit(0)
-                    fn_check = dir_check + '{:02d}_{:05d}_{:01d}_{:02d}'.format(i_epoch, i_batch, i_sam, i_frm) + '.png'
+                    fn_check = os.path.join(dir_check, '{:02d}_{:05d}_{:01d}_{:02d}'.format(i_epoch, i_batch, i_sam, i_frm) + '.png')
                     #t2 = pred_src[i_sam, i_frm]
                     #print('type(t2) : {}, t2.shape : {}'.format(type(t2), t2.shape))
                     bgr_pred_comp = cv2.cvtColor(tensor_0_1_to_ndarray_0_255(pred_comp[i_sam, i_frm]), cv2.COLOR_RGB2BGR)

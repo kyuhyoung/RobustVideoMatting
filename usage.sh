@@ -26,7 +26,7 @@ END
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${vid_title}.mp4 --output-type png_sequence --output-composition ${vid_title}_composition_imgs --str-rgb-bg 255_0_0
 END
 #
-#: << 'END'
+: << 'END'
 #   inference on video and save the original and composition to image seq.
 #vid_title=butter
 #vid_title=long_hair_youtube
@@ -87,7 +87,7 @@ done
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/rgb_${seq_id}/imgs_ori --output-type png_sequence --output-composition ${dir_out}/imgs_comp --str-rgb-bg 0_255_0 --input-resize ${w_input} ${h_input}
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/${seq_id}/imgs_ori --output-type video --output-composition ${dir_out}/imgs_comp --output-original ${dir_out}/imgs_ori --str-rgb-bg 255_0_0
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_data}/vid_ori/${seq_id}.mp4 --output-type png_sequence --output-composition ${dir_out}/imgs_comp --output-original ${dir_out}/imgs_ori --str-rgb-bg 255_0_0
-#END
+END
 #
 : << 'END'
 #   inference on image seq. and save the composition to image seq.
@@ -95,14 +95,16 @@ done
 #dir_test=test/${vid_title}
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_test}/imgs_ori --output-type png_sequence --output-composition ${dir_test}/imgs_comp --str-rgb-bg 255_0_0
 END
-#
-: << 'END'
+
+#: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
 #dir_test=test/${vid_title}
 #dir_1=/data/k-hairstyle/Training/0002.mqset_mini
 #dir_1=/data/k-hairstyle/Training/0002.mqset
-dir_1=/data/k-hairstyle/Validation/0002.mqset
-command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
+#dir_1=/data/k-hairstyle/Training/0001.hqset
+#dir_1=/data/k-hairstyle/Validation/0002.mqset
+#dir_1=/data/k-hairstyle/Validation/0001.hqset
+#command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
 ext=jpg_jpeg
 #ext=jpeg
 #ext=jpeg
@@ -110,20 +112,36 @@ ext=jpg_jpeg
 #res_1=`${command_1}`
 #echo "result of command_1 : " ${res_1}
 #exit
-for d_hair_style in `${command_1}`
-#for d_hair_style in 0022
-do  
-    echo "d_hair_style : ${d_hair_style}"
-    command_2="find ${d_hair_style} -mindepth 1 -maxdepth 1 -type d"
-    for d_id in `${command_2}`
-    #for d_id_only in 2503.JS218573 2738.JS376405 0775.CP500344 3232.JS634122 2283.JS048924
+#for d_resol in 0001.hqset 0002.mqset
+#for d_resol in 0001.hqset
+#for d_resol in 0001.hqset_5
+for d_resol in 0003.rawset_modified_shit
+do
+    #for d_tra_val in Training Validation
+    for d_tra_val in Training
+    #for d_tra_val in Validation
     do
-        #d_id=${dir_1}/${d_hair_style}/${d_id_only}
-        echo "d_id : ${d_id}"
-        python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-composition ${d_id}/rvm_comp --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
+        #dir_1=/data/k-hairstyle/Training/0001.hqset
+        dir_1=/data/k-hairstyle/${d_tra_val}/${d_resol}
+        command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
+
+        for d_hair_style in `${command_1}`
+        #for d_hair_style in 0022
+        do  
+            echo "d_hair_style : ${d_hair_style}"
+            command_2="find ${d_hair_style} -mindepth 1 -maxdepth 1 -type d"
+            for d_id in `${command_2}`
+            #for d_id_only in 2503.JS218573 2738.JS376405 0775.CP500344 3232.JS634122 2283.JS048924
+            do
+                #d_id=${dir_1}/${d_hair_style}/${d_id_only}
+                echo "d_id : ${d_id}"
+                #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-composition ${d_id}/rvm_comp --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
+                python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
+            done
+        done  
     done
 done    
-END
+#END
     
 
 #################################################################################################

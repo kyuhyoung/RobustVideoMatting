@@ -3,6 +3,9 @@ import sys
 import cv2
 import numpy as np
 
+def get_exact_file_name_from_path(str_path):
+    return os.path.splitext(os.path.basename(str_path))[0]
+
 def concatenate_images_from_sequences_into_video(fn_video, li_li_im, li_caption, is_horizontal, fps_output, n_max_per_row_or_col, pxl_max_per_row_or_col = 0, color_bg = (255, 255, 255), wh_interval = (0, 0)):
     
     #   check if the # of images of each directory are the same.

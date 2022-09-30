@@ -154,6 +154,9 @@ class VideoMatteDataset(Dataset):
                 path_pha_hair = os.path.join(self.videomatte_dir, clip, 'hair_seg_map', id_img + '.png')
                 #with Image.open(os.path.join(self.videomatte_dir, clip, 'rvm_comp', frame)) as fgr_body, \
                 with Image.open(path_fgr_body) as fgr_body, Image.open(path_pha_body) as pha_body, Image.open(path_pha_hair) as pha_hair:
+                    if (fgr_body.size != pha_body.size) or (fgr_body.size != pha_hair.size) or (pha_body.size != pha_hair.size):
+                        print('fgr_body.size : {}, pha_body.size : {}, pha_hair.size : {} at {}'.format(fgr_body.size, pha_body.size, pha_hair.size, path_fgr_body));  exit();
+                        
                     fgr_body = self._downsample_if_needed(fgr_body.convert('RGB'))
                     pha_body = self._downsample_if_needed(pha_body.convert('L'))
                     pha_hair = self._downsample_if_needed(pha_hair.convert('L'))
