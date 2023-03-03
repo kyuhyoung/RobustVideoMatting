@@ -50,11 +50,6 @@ class Exporter:
             self.model.load_state_dict(torch.load(self.args.checkpoint, map_location=self.args.device), strict=False)
         #exit(0);
     def export(self):
-        #rec = (torch.zeros([1, 1, 1, 1]).to(self.args.device, self.precision),) * 4
-        #src = torch.randn(1, 3, 1080, 1920).to(self.args.device, self.precision)
-        #downsample_ratio = torch.tensor([0.25]).to(self.args.device)
-        #rec = [torch.zeros([1, 1, 1, 1]).to(self.args.device, self.precision)] * 4
-        #'''
         rec = [None] * 4
         '''
         if self.ceil_mode:
@@ -84,12 +79,16 @@ class Exporter:
         h_1 = floor((h_0 - 1) / 2 + 1);
         h_2 = floor((h_1 - 1) / 2 + 1);
         h_3 = floor((h_2 - 1) / 2 + 1);
-
-        rec[0] = torch.zeros([1, 16, h_0, w_0]).to(self.args.device, self.precision)
-        rec[1] = torch.zeros([1, 20, h_1, w_1]).to(self.args.device, self.precision)
-        rec[2] = torch.zeros([1, 40, h_2, w_2]).to(self.args.device, self.precision)
-        rec[3] = torch.zeros([1, 64, h_3, w_3]).to(self.args.device, self.precision)
-        
+        if 'mobilenetv3' == self.args.model_variant:
+            rec[0] = torch.zeros([1, 16, h_0, w_0]).to(self.args.device, self.precision)
+            rec[1] = torch.zeros([1, 20, h_1, w_1]).to(self.args.device, self.precision)
+            rec[2] = torch.zeros([1, 40, h_2, w_2]).to(self.args.device, self.precision)
+            rec[3] = torch.zeros([1, 64, h_3, w_3]).to(self.args.device, self.precision)
+        else:
+            rec[0] = torch.zeros([1, 16, h_0, w_0]).to(self.args.device, self.precision)
+            rec[1] = torch.zeros([1, 32, h_1, w_1]).to(self.args.device, self.precision)
+            rec[2] = torch.zeros([1, 64, h_2, w_2]).to(self.args.device, self.precision)
+            rec[3] = torch.zeros([1, 128, h_3, w_3]).to(self.args.device, self.precision)
         #rec[0] = torch.zeros([1, 16, 135, 240]).to(self.args.device, self.precision)
         #rec[1] = torch.zeros([1, 20, 68, 120]).to(self.args.device, self.precision)
         #rec[2] = torch.zeros([1, 40, 34, 60]).to(self.args.device, self.precision)

@@ -45,7 +45,7 @@ class MattingNetwork(nn.Module):
         else:
             self.backbone = ResNet50Encoder(pretrained_backbone)
             self.aspp = LRASPP(2048, 256)
-            self.decoder = RecurrentDecoder([64, 256, 512, 256], [128, 64, 32, 16])
+            self.decoder = RecurrentDecoder([64, 256, 512, 256], [128, 64, 32, 16], ceil_mode)
             
         self.project_mat = Projection(16, 4)
         self.project_seg = Projection(16, 1)
@@ -108,10 +108,10 @@ class MattingNetwork(nn.Module):
         f1, f2, f3, f4 = self.backbone(src_sm)
         #print('f4.shape b4 : {}'.format(f4.shape))
         f4 = self.aspp(f4)
+        #print('f4.shape : after {}'.format(f4.shape));  exit(0)
         '''
-        print('f4.shape : after {}'.format(f4.shape))
         print('f1.shape : {}, f2.shape : {}, f3.shape : {}, f4.shape : {}'.format(f1.shape, f2.shape, f3.shape, f4.shape));   #exit(0);
-        print('r1.shape : {}, r2.shape : {}, r3.shape : {}, r4.shape : {}'.format(r1.shape, r2.shape, r3.shape, r4.shape));   #exit(0);
+        print('r1.shape : {}, r2.shape : {}, r3.shape : {}, r4.shape : {}'.format(r1.shape, r2.shape, r3.shape, r4.shape));   exit(0);
         '''
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
         

@@ -33,6 +33,7 @@ class RecurrentDecoder(nn.Module):
     def forward(self, s0, f1, f2, f3, f4, r1, r2, r3, r4):
         s1, s2, s3 = self.avgpool(s0);
         #print('s0.shape : {}, s1.shape : {}, s2.shape : {}, s3.shape : {}'.format(s0.shape, s1.shape, s2.shape, s3.shape));  exit(0)
+        #print(f'f4.shape : {f4.shape}, r4.shape : {r4.shape}');  exit(0)
         x4, r4 = self.decode4(f4, r4)
         x3, r3 = self.decode3(x4, f3, s3, r3)
         x2, r2 = self.decode2(x3, f2, s2, r2)
@@ -200,6 +201,7 @@ class ConvGRU(nn.Module):
                  padding: int = 1):
         super().__init__()
         self.channels = channels
+        print(f'channels : {channels}, kernel_size : {kernel_size}');    #exit(0)
         self.ih = nn.Sequential(
             nn.Conv2d(channels * 2, channels * 2, kernel_size, padding=padding),
             nn.Sigmoid()
@@ -210,6 +212,7 @@ class ConvGRU(nn.Module):
         )
         
     def forward_single_frame(self, x, h):
+        #print(f'x.shape : {x.shape}, h.shape : {h.shape}'); exit(0)
         r, z = self.ih(torch.cat([x, h], dim=1)).split(self.channels, dim=1)
         c = self.hh(torch.cat([x, r * h], dim=1))
         h = (1 - z) * h + z * c
@@ -231,6 +234,7 @@ class ConvGRU(nn.Module):
             print('h_b4 :', h_b4);
             print('h :', h);    exit(0) #   This does NOT happen, which means h_b4 and h are alway equeal and expand as is not necessary.
         '''    
+        #h = h.expand_as(x)
         if x.ndim == 5:
             return self.forward_time_series(x, h)
         else:
