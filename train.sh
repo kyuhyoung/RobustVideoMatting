@@ -16,11 +16,20 @@ END
 python train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 50 --learning-rate-backbone 0.000005 --learning-rate-aspp 0.00001 --learning-rate-decoder 0.00001 --learning-rate-refiner 0 --checkpoint checkpoint/stage1/ep_06_ib_04798_val_loss_0.08751676173903891.pth --checkpoint-dir checkpoint/stage2 --log-dir log/stage2 --epoch-start 7 --epoch-end 9 --checkpoint-save-interval 2000  --is_hair
 END
 
-#: << 'END'
+: << 'END'
 ##################################################################################################
 #   train stage 3 
 #   Author's setting.
 #python train.py --model-variant mobilenetv3 --dataset videomatte --train-hr --resolution-lr 512 --resolution-hr 2048 --seq-length-lr 40 --seq-length-hr 6 --learning-rate-backbone 0.00001 --learning-rate-aspp 0.00001 --learning-rate-decoder 0.00001 --learning-rate-refiner 0.0002 --checkpoint checkpoint/stage2/epoch-21.pth --checkpoint-dir checkpoint/stage3 --log-dir log/stage3 --epoch-start 22 --epoch-end 23
 #   For k-hairstyle 0001.hqset stage 3
-python train.py --model-variant mobilenetv3 --dataset videomatte --train-hr --resolution-lr 512 --resolution-hr 1024 --seq-length-lr 40 --seq-length-hr 6 --learning-rate-backbone 0.000001 --learning-rate-aspp 0.000001 --learning-rate-decoder 0.000001 --learning-rate-refiner 0.00002 --checkpoint checkpoint/stage2/ep_08_ib_00336_val_loss_0.08507319947178603.pth --checkpoint-dir checkpoint/stage3 --log-dir log/stage3 --epoch-start 9 --epoch-end 10 --checkpoint-save-interval 2000 --is_hair
+python train.py --model-variant mobilenetv3 --dataset videomatte --train-hr --resolution-lr 512 --resolution-hr 2048 --seq-length-lr 40 --seq-length-hr 6 --learning-rate-backbone 0.000001 --learning-rate-aspp 0.000001 --learning-rate-decoder 0.000001 --learning-rate-refiner 0.00002 --checkpoint checkpoint/stage2/ep_08_ib_00336_val_loss_0.08507319947178603.pth --checkpoint-dir checkpoint/stage3 --log-dir log/stage3 --epoch-start 9 --epoch-end 10 --checkpoint-save-interval 2000 --is_hair
+END
+
+#: << 'END'
+##################################################################################################
+#   train stage 4 
+#   Author's setting.
+#python train.py --model-variant mobilenetv3 --dataset imagematte --train-hr --resolution-lr 512 --resolution-hr 2048 --seq-length-lr 40 --seq-length-hr 6 --learning-rate-backbone 0.00001 --learning-rate-aspp 0.00001 --learning-rate-decoder 0.00005 --learning-rate-refiner 0.0002 --checkpoint checkpoint/stage3/epoch-22.pth --checkpoint-dir checkpoint/stage4 --log-dir log/stage4 --epoch-start 23 --epoch-end 28
+#   For k-hairstyle 0001.hqset stage 4
+python train.py --model-variant mobilenetv3 --dataset videomatte --train-hr --resolution-lr 512 --resolution-hr 2048 --seq-length-lr 40 --seq-length-hr 6 --learning-rate-backbone 0.000001 --learning-rate-aspp 0.000001 --learning-rate-decoder 0.000005 --learning-rate-refiner 0.00002 --checkpoint checkpoint/ep_10_ib_02250_val_loss_0.12326065606119682.pth --checkpoint-dir checkpoint/stage4 --log-dir log/stage4 --epoch-start 11 --epoch-end 20 --checkpoint-save-interval 2000 --is_hair
 #END

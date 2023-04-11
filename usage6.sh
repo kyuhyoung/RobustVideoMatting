@@ -1,5 +1,5 @@
-: << 'END'
 #################################################################################################
+: << 'END'
 #
 #   train 
 #
@@ -90,43 +90,13 @@ done
 END
 #
 : << 'END'
-#   inference RVM hair version on image seq. and save the composition to image seq.
+#   inference on image seq. and save the composition to image seq.
 #vid_title=long_hair_youtube_21
-#vid_title=fxgear_220629_1080_1920
-#vid_title=sooji_1280_720
-vid_title=joonhan_1280_720
-#vid_title=tomotomo_800_999_1920_1080
-#checkpoint=rvm_mobilenetv3.pth
-#checkpoint=checkpoint/stage4/ep_12_ib_01500_val_loss_0.12242806323190356.pth
-ext=png
-
-checkpoint=checkpoint/stage2/ep_08_ib_00336_val_loss_0.08507319947178603.pth
-#for vid_title in joonhan_1280_720 eunchae_1280_720
-for vid_title in joonhan_1280_720
-do
-    dir_in=/data/test_seq/${vid_title}/imgs_ori
-    #for down_ratio in 0.25 1.0
-    #for down_ratio in 1.0
-    for down_ratio in 0.25
-    #for down_ratio in 0.125
-    do
-        #for seg in False True
-        #for seg in True
-        for seg in False
-        do    
-            #for ignore_temporal in True False    
-            #for ignore_temporal in False    
-            for ignore_temporal in True    
-            do
-                dir_out=output/${vid_title}_downsample_ratio_${down_ratio}_is_segmentation_${seg}_ignore_temporal_${ignore_temporal}/rvm_comp
-                python3 inference.py --variant mobilenetv3 --checkpoint ${checkpoint} --device cuda:0 --downsample-ratio ${down_ratio} --ext ${ext} --input-source ${dir_in} --output-type png_sequence --output-composition ${dir_out} --str-rgb-bg 255_0_0 --is-segmentation ${seg} --ignore_temporal ${ignore_temporal} --is_hair 
-            done
-        done
-    done
-done    
+#dir_test=test/${vid_title}
+#python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${dir_test}/imgs_ori --output-type png_sequence --output-composition ${dir_test}/imgs_comp --str-rgb-bg 255_0_0
 END
 
-: << 'END'
+#: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
 #dir_test=test/${vid_title}
 #dir_1=/data/k-hairstyle/Training/0002.mqset_mini
@@ -144,12 +114,10 @@ ext=jpg_jpeg
 #exit
 #for d_resol in 0001.hqset 0002.mqset
 #for d_resol in 0001.hqset
-#for d_resol in 0001.hqset_5
-for d_resol in 0003.rawset_modified_shit
+for d_resol in 0003.rawset_modified_shit_6
 do
     #for d_tra_val in Training Validation
     for d_tra_val in Training
-    #for d_tra_val in Validation
     do
         #dir_1=/data/k-hairstyle/Training/0001.hqset
         dir_1=/data/k-hairstyle/${d_tra_val}/${d_resol}
@@ -171,46 +139,11 @@ do
         done  
     done
 done    
-END
-
-
-#: << 'END'
-#   inference on image seq. and save the composition and alpha to image seq.
-#dir_test=test/${vid_title}
-#dir_1=/data/k-hairstyle/Training/0002.mqset_mini
-#dir_1=/data/k-hairstyle/Training/0002.mqset
-#dir_1=/data/k-hairstyle/Training/0001.hqset
-#dir_1=/data/k-hairstyle/Validation/0002.mqset
-#dir_1=/data/k-hairstyle/Validation/0001.hqset
-#command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
-#ext=jpg_jpeg
-#ext=jpeg
-ext=png
-#echo "command_1 : ${command_1}"
-#res_1=`${command_1}`
-#echo "result of command_1 : " ${res_1}
-#exit
-#for d_resol in 0001.hqset 0002.mqset
-#for d_resol in 0001.hqset
-#for d_resol in 0001.hqset_5
-for aidi in taejeong1_1080_1920 taejeong2_1080_1920 taejeong3_1080_1920 sohyun1_1080_1920 sohyun2_1080_1920  
-#for aidi in taejeong1_1080_1920  
-do
-    d_id=/data/matting/test_seq/fxgear_5th_floor_221207/img_seq/${aidi} 
-    for scale in 0.25
-    do
-        python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id}/imgs_ori --output-type png_sequence --output-composition ${d_id}/rvm_comp_scale_${scale} --output-alpha ${d_id}/rvm_alpha_scale_${scale} --str-rgb-bg 255_0_0 --downsample-ratio ${scale}
-                #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
-    done
-done    
 #END
     
 
-
-    
-
-: << 'END'
 #################################################################################################
+: << 'END'
 #
 #   concatenate multiple image sequences into a video 
 #

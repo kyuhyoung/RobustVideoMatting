@@ -15,12 +15,59 @@ python inference.py \
 import torch
 import os
 import time
+import cv2
+import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Tuple
 from tqdm.auto import tqdm
 from utils import get_exact_file_name_from_path
 from inference_utils import VideoReader, VideoWriter, ImageSequenceReader, ImageSequenceWriter, get_list_of_file_path_under_1st_with_3rd_extension
+
+
+def image_to_tensor(image: "np.ndarray", keepdim: bool = True) -> torch.Tensor:
+    """Convert a numpy image to a PyTorch 4d tensor image.
+    Args:
+        image: image of the form :math:`(H, W, C)`, :math:`(H, W)` or
+            :math:`(B, H, W, C)`.
+        keepdim: If ``False`` unsqueeze the input image to match the shape
+            :math:`(B, H, W, C)`.
+    Returns:
+        tensor of the form :math:`(B, C, H, W)` if keepdim is ``False``,
+            :math:`(C, H, W)` otherwise.
+    Example:
+        >>> img = np.ones((3, 3))
+        >>> image_to_tensor(img).shape
+        torch.Size([1, 3, 3])
+        >>> img = np.ones((4, 4, 1))
+        >>> image_to_tensor(img).shape
+        torch.Size([1, 4, 4])
+        >>> img = np.ones((4, 4, 3))
+        >>> image_to_tensor(img, keepdim=False).shape
+        torch.Size([1, 3, 4, 4])
+    """
+    if len(image.shape) > 4 or len(image.shape) < 2:
+        raise ValueError("Input size must be a two, three or four dimensional array")
+
+    input_shape = image.shape
+    tensor: torch.Tensor = torch.from_numpy(image)
+
+    if len(input_shape) == 2:
+        # (H, W) -> (1, H, W)
+        tensor = tensor.unsqueeze(0)
+    elif len(input_shape) == 3:
+        # (H, W, C) -> (C, H, W)
+        tensor = tensor.permute(2, 0, 1)
+    elif len(input_shape) == 4:
+        # (B, H, W, C) -> (B, C, H, W)
+        tensor = tensor.permute(0, 3, 1, 2)
+        keepdim = True  # no need to unsqueeze
+    else:
+        raise ValueError(f"Cannot process image with shape {input_shape}")
+
+    return tensor.unsqueeze(0) if not keepdim else tensor
+
+
 
 
 def str2bool(v):
@@ -58,6 +105,8 @@ def convert_video(model,
                   seq_chunk: int = 1,
                   num_workers: int = 0,
                   progress: bool = True,
+                  is_hair: bool = False,
+                  ignore_temporal: bool = False,
                   ext: str = None,
                   device: Optional[str] = None,
                   #dtype: Optional[torch.dtype] = None):
@@ -107,7 +156,9 @@ def convert_video(model,
         source = ImageSequenceReader(input_source, li_ext, shall_return_path, transform)
 
     reader = DataLoader(source, batch_size=seq_chunk, pin_memory=True, num_workers=num_workers)
-    
+   
+
+
     # Initialize writers
     if output_type == 'video':
         frame_rate = source.frame_rate if isinstance(source, VideoReader) else 30
@@ -186,6 +237,10 @@ def convert_video(model,
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0) # [B, T, C, H, W]
                 start_inf = time.time()   
                 #fgr, pha, *rec = model(src, *rec, downsample_ratio)
+                
+                if ignore_temporal:
+                    rec = [None] * 4
+                
                 if is_segmentation:
                     seg, *rec = model(src, *rec, downsample_ratio, is_segmentation)
                 else:      
@@ -235,25 +290,50 @@ def convert_video(model,
                 if output_alpha is not None:
                     writer_pha.write(pha[0], li_id)
                 if output_composition is not None:
+                    if is_hair:
+                        luminance = src[:, :, 0, :, :] * 0.299 + src[:, :, 1, :, :] * 0.587 + src[:, :, 2, :, :] * 0.114;
+                        #print('\tluminance.shape b4 unsqueeze: {}'.format(luminance.shape));    #exit(0);
+                        luminance = luminance.unsqueeze(dim = 2)
+                        #print('\tluminance.shape after unsqueeze : {}'.format(luminance.shape));    exit(0);
+                    if is_segmentation:
+                        shape_ori = (seg.shape[2], src.shape[3], src.shape[4]) 
+                        #shape_ori = (src.shape[3], src.shape[4]) 
+                        #print('\tseg.shape : {}'.format(seg.shape));    #exit(0);
+                        seg = torch.nn.functional.interpolate(seg, shape_ori) 
                     if output_type == 'video':
                         if is_segmentation:
-                            #print('111')
-                            #com = src * seg.sigmoid()
-                            com = src * seg + bgr * (1 - seg)
+                            #com = src * seg.sigmoid()              #   original
+                            if is_hair:
+                                seg *= luminance
+                                com = bgr * seg + src * (1 - seg)   
+                            else:
+                                com = src * seg + bgr * (1 - seg)   #   modification
                         else:
-                            #print('222')
-                            com = fgr * pha + bgr * (1 - pha)
+                            if is_hair:
+                                pha *= luminance
+                                #com = bgr * pha + fgr * (1 - pha)  #   1st modefication
+                                com = bgr * pha + src * (1 - pha)   #   2nd modification
+                            else:
+                                #com = fgr * pha + bgr * (1 - pha)  #   1st modification
+                                com = src * pha + bgr * (1 - pha)   #   2nd modification
                     else:
                         if is_segmentation:
-                            #print('333')
-                            #com = src * seg.sigmoid()
-                            com = src * seg + bgr * (1 - seg)
+                            #com = src * seg.sigmoid()              #   original
+                            if is_hair:
+                                seg *= luminance
+                                com = bgr * seg + src * (1 - seg)
+                            else:
+                                com = src * seg + bgr * (1 - seg)   #   modification
                         else:
-                            #print('444')                        #   This is taken  
-                            #fgr = fgr * pha.gt(0)
-                            #com = torch.cat([fgr, pha], dim=-3)
-                            com = fgr * pha + bgr * (1 - pha)
-                    #exit(0);                                    #   444
+                            #fgr = fgr * pha.gt(0)                  #   original
+                            #com = torch.cat([fgr, pha], dim=-3)    #   original
+                            if is_hair:
+                                pha *= luminance
+                                #com = bgr * pha + fgr * (1 - pha)   #   1st modification
+                                com = bgr * pha + src * (1 - pha)   #   2nd modification
+                            else:
+                                #com = fgr * pha + bgr * (1 - pha)   #   1st modification
+                                com = src * pha + bgr * (1 - pha)   #   2nd modification
                     writer_com.write(com[0], li_id)
                 
                 bar.update(src.size(1))
@@ -314,7 +394,35 @@ class Converter:
 if __name__ == '__main__':
     import argparse
     from model import MattingNetwork
-    
+    '''
+    from connected_components import connected_components
+    divider = 4 #   which means 150 for saiz of Resize
+    n_iter = 30
+    img: np.ndarray = cv2.imread("cells_binary.png", cv2.IMREAD_GRAYSCALE)
+    #img = img[:int(img.shape[0] / 3)]
+    img_t: torch.Tensor = image_to_tensor(img)  # CxHxW
+    print('img_t.shape ori : {}'.format(img_t.shape))        #   (1, 602, 602)
+    #saiz = [int(img_t.shape[-2] / 2), int(img_t.shape[-1] / 2)]
+    size_ori = img_t.shape[-2]
+    saiz = int(size_ori / divider)
+    print('saiz : {}'.format(saiz))
+    img_t = transforms.Resize(size = saiz)(img_t);
+    print('img_t.shape 1 : {}'.format(img_t.shape));  #exit(0);
+    img_t = img_t[None,...].float() / 255.
+    print('img_t.shape 2 : {}'.format(img_t.shape));  #exit(0);
+    labels_out = connected_components(img_t, num_iterations=n_iter)
+    #labels_out = connected_components(img_t, num_iterations=200)
+    print('labels_out.shape b4 : {}'.format(labels_out.shape));  #exit(0);
+    print('labels_out.squeeze().shape b4 : {}'.format(labels_out.squeeze().shape));  #exit(0);
+    print('labels_out.squeeze() b4 : {}'.format(labels_out.squeeze()));  #exit(0);
+    print('torch.unique(labels_out) b4 :'); print(torch.unique(labels_out));   
+    labels_out = transforms.Resize(size = size_ori, interpolation = transforms.InterpolationMode.NEAREST)(labels_out);
+    print('labels_out.shape after : {}'.format(labels_out.shape));  #exit(0);
+    print('labels_out.squeeze().shape after : {}'.format(labels_out.squeeze().shape));  #exit(0);
+    print('labels_out.squeeze() after : {}'.format(labels_out.squeeze()));  #exit(0);
+    print('torch.unique(labels_out) after :'); print(torch.unique(labels_out));   
+    exit(0);
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--variant', type=str, required=True, choices=['mobilenetv3', 'resnet50'])
     parser.add_argument('--checkpoint', type=str, required=True)
@@ -325,6 +433,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-composition', type=str)
     parser.add_argument('--output-original', type=str)
     parser.add_argument('--str-rgb-bg', type=str)
+    parser.add_argument('--is_hair', action='store_true')
     parser.add_argument('--ext', type=str)
     parser.add_argument('--output-alpha', type=str)
     parser.add_argument('--output-foreground', type=str)
@@ -334,13 +443,16 @@ if __name__ == '__main__':
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--disable-progress', action='store_true')
     parser.add_argument('--is-segmentation', type=str, default = 'False')
+    parser.add_argument('--ignore_temporal', type=str, default = 'False')
     parser.add_argument('--precision', type=str, default = 'float32')
     args = parser.parse_args()
     #converter = Converter(args.variant, args.checkpoint, args.device)
     
     check_if_there_is_image_files_4_given_extension_when_input_source_is_image_seqeunce(
         args.input_source, args.ext)
-
+    
+    #print('args.is_hair : {}'.format(args.is_hair));  exit(0)
+    #print(f'args.downsample_ratio : {args.downsample_ratio}');  exit(0)
     converter = Converter(args.variant, args.checkpoint, args.device, args.precision)
     converter.convert(
         input_source=args.input_source,
@@ -356,6 +468,8 @@ if __name__ == '__main__':
         seq_chunk=args.seq_chunk,
         num_workers=args.num_workers,
         ext = args.ext,
+        is_hair = args.is_hair,
+        ignore_temporal = str2bool(args.ignore_temporal),
         is_segmentation = str2bool(args.is_segmentation), progress=not args.disable_progress
         #progress=not args.disable_progress
     )
