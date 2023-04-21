@@ -8,24 +8,24 @@
 python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --is_hair 
 #python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --checkpoint-save-interval 10 --disable-validation  
 END
-#
-#
+
+: << 'END'
 #################################################################################################
 #   inference 
 #
-: << 'END'
 #   inference on video and save to video. 
 #
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source butter.mp4 --output-type video --output-composition composition_mbps_05.mp4 --output-video-mbps 5   
 END
-#
+
 : << 'END'
 #   inference on video and save the composition to image seq.
 #
 #vid_title=butter
 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source ${vid_title}.mp4 --output-type png_sequence --output-composition ${vid_title}_composition_imgs --str-rgb-bg 255_0_0
 END
-#
+
+
 : << 'END'
 #   inference on video and save the original and composition to image seq.
 #vid_title=butter
@@ -174,7 +174,7 @@ done
 END
 
 
-#: << 'END'
+: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
 #dir_test=test/${vid_title}
 #dir_1=/data/k-hairstyle/Training/0002.mqset_mini
@@ -203,7 +203,76 @@ do
                 #python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_id} --output-type png_sequence --output-alpha ${d_id}/rvm_alpha --str-rgb-bg 255_0_0
     done
 done    
+END
+
+#: << 'END'
+#   inference on image seq. and save the composition and alpha to image seq.
+#dir_test=test/${vid_title}
+#dir_1=/data/k-hairstyle/Training/0002.mqset_mini
+#dir_1=/data/k-hairstyle/Training/0002.mqset
+#dir_1=/data/k-hairstyle/Training/0001.hqset
+#dir_1=/data/k-hairstyle/Validation/0002.mqset
+#dir_1=/data/k-hairstyle/Validation/0001.hqset
+#command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
+#ext=jpg_jpeg
+#ext=jpeg
+ext=png
+#echo "command_1 : ${command_1}"
+#res_1=`${command_1}`
+#echo "result of command_1 : " ${res_1}
+#exit
+#for d_resol in 0001.hqset 0002.mqset
+#for d_resol in 0001.hqset
+#for d_resol in 0001.hqset_5
+dir_root=/data/matting/hand_video_png
+dir_out=./output/hand_video_png
+#cmd_1="find ${dir_root} -type f -name '*.${ext}' -printf '%h\n' | sort -u | sed 's|^|$PWD/|'"
+cmd_1="ls -d ${dir_root}/*/"
+for d_id in `${cmd_1}`
+do
+	aidi=$(basename ${d_id})
+	#echo "aidi : ${aidi}";	exit;
+	#d_id=${dir_root}/${aidi}
+	#echo "d_id : ${d_id}";	exit;
+	d_out=${dir_out}/${aidi}
+	#echo "d_out : ${d_out}";	exit;
+	mkdir -p ${d_out}
+	cmd_2="ls -d ${d_id}/*/"
+	for d_img in `${cmd_2}`
+	do
+		#echo "d_img : ${d_img}";	exit;
+		#d_img=${d_id}/${idx}
+		idx=$(basename ${d_img})
+		#echo "idx : ${idx}";	exit;
+		d_out_comp=${d_out}/${idx}/com
+		mkdir -p ${d_out_comp}
+		#exit
+		python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_img} --output-type png_sequence --output-composition ${d_out_comp} --str-rgb-bg 255_0_0
+	done
+done    
 #END
+
+ 
+
+: << 'END'
+#   inference on image seq. and save the composition and alpha to image seq.
+#for dir in people_waving_hands_over_1024 people_victory_gesture_and_thumb_up_over_1024 people_ok_hi5_hanads_up_over_1024
+for dir in people_victory_gesture_and_thumb_up_over_1024 people_ok_hi5_hands_up_over_1024
+#for dir in people_victory_gesture_and_thumb_up_over_1024
+do
+	dir_img=/data/matting/${dir}
+	for phile in ${dir_img}/*
+	do
+    	echo "phile : ${phile}"
+    	if [[ "${phile}" =~ \.(jpg|jpeg|png|webp|gif)$ ]]; then
+    	#if [[ "${phile}" =~ \.(webp)$ ]]; then
+        	#exit
+        	python3 inference_single_image_vs_pseudo_sequence.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --input-source "${phile}" --str-rgb-bg 255_0_0 --n_iter 50
+        	#exit    
+    	fi
+	done
+done  
+END
     
 
 
@@ -224,10 +293,9 @@ done
 #   vertical
 python3 concatenate_sequences_from_folders_into_video_with_audio.py --fps_output 10.0 --is_horizontal False --max_pxl 3000 --max_slot 2 --dir_out ${dir_out}/vid_comp --fn_vid ${seq_id}_ori_comp --li_ext png png --li_dir ${dir_data}/imgs_ori ${dir_out}/imgs_comp
 END
-#
-#
-#################################################################################################
+
 : << 'END'
+#################################################################################################
 #
 #   save video into image sequences 
 #
@@ -254,11 +322,9 @@ do
 done    
 
 END
-#
-#
-#
-#################################################################################################
+
 : << 'END'
+#################################################################################################
 #
 #   resample files  
 #
@@ -267,11 +333,9 @@ END
 #python3 resample_files_under_directory.py output/kinect/seq_2/ori/kinect_rgb_2/imgs_ori png 368 output/kinect/seq_2/modified/kinect_rgb_2/imgs_ori 4 371 0
 python3 resample_files_under_directory.py output/kinect/seq_2/ori/kinect_seg_2/imgs_ori png 368 output/kinect/seq_2/modified/kinect_seg_2/imgs_ori 1 350 0
 END
-#
-#
-#
-#################################################################################################
+
 : << 'END'
+#################################################################################################
 #
 #   make binary mask out of green screen image  
 #

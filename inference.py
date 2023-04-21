@@ -103,6 +103,7 @@ def convert_video(model,
                   output_foreground: Optional[str] = None,
                   output_video_mbps: Optional[float] = None,
                   seq_chunk: int = 1,
+                  n_additional_iter_4_initial: int = 0,
                   num_workers: int = 0,
                   progress: bool = True,
                   is_hair: bool = False,
@@ -110,7 +111,8 @@ def convert_video(model,
                   ext: str = None,
                   device: Optional[str] = None,
                   #dtype: Optional[torch.dtype] = None):
-                  is_segmentation: bool = False, dtype: Optional[torch.dtype] = None):
+                  is_segmentation: bool = False, 
+                  dtype: Optional[torch.dtype] = None):
     
     """
     Args:
@@ -137,6 +139,8 @@ def convert_video(model,
     assert seq_chunk >= 1, 'Sequence chunk must be >= 1'
     assert num_workers >= 0, 'Number of workers must be >= 0'
     
+    polish_for_initial_frame = n_additional_iter_4_initial > 0
+
     # Initialize transform
     if input_resize is not None:
         transform = transforms.Compose([
@@ -237,10 +241,10 @@ def convert_video(model,
                 src = src.to(device, dtype, non_blocking=True).unsqueeze(0) # [B, T, C, H, W]
                 start_inf = time.time()   
                 #fgr, pha, *rec = model(src, *rec, downsample_ratio)
-                
+               
+                 
                 if ignore_temporal:
                     rec = [None] * 4
-                
                 if is_segmentation:
                     seg, *rec = model(src, *rec, downsample_ratio, is_segmentation)
                 else:      
@@ -283,6 +287,13 @@ def convert_video(model,
                     else:
                         exit(0)
                     '''    
+                if 0 == idx and False == ignore_temporal and True == polish_for_initial_frame:
+                    for iT in range(n_iter_4_initial):
+                        if is_segmentation:
+                            seg, *rec = model(src, *rec, downsample_ratio, is_segmentation)
+                        else:      
+                            fgr, pha, *rec = model(src, *rec, downsample_ratio, is_segmentation)
+                    
                 sec_inf = time.time() - start_inf
 
                 if output_foreground is not None:
@@ -439,6 +450,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-foreground', type=str)
     parser.add_argument('--output-type', type=str, required=True, choices=['video', 'png_sequence'])
     parser.add_argument('--output-video-mbps', type=int, default=1)
+    parser.add_argument('--n_additional_iter_4_initial', type=int, default=0)
     parser.add_argument('--seq-chunk', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--disable-progress', action='store_true')
@@ -466,11 +478,13 @@ if __name__ == '__main__':
         output_foreground=args.output_foreground,
         output_video_mbps=args.output_video_mbps,
         seq_chunk=args.seq_chunk,
+        n_additional_iter_4_initial = args.n_additional_iter_4_initial,
         num_workers=args.num_workers,
         ext = args.ext,
         is_hair = args.is_hair,
         ignore_temporal = str2bool(args.ignore_temporal),
-        is_segmentation = str2bool(args.is_segmentation), progress=not args.disable_progress
+        is_segmentation = str2bool(args.is_segmentation), 
+        progress=not args.disable_progress
         #progress=not args.disable_progress
     )
     
