@@ -50,8 +50,8 @@ class DeepGuidedFilterRefiner(nn.Module):
         b = F.interpolate(b, (H, W), mode='bilinear', align_corners=False)
         
         out = A * fine_x + b
-        print(f'out.shape : {out.shape}');    exit()#   4, 288, 512
-        fgr, pha = out.split([3, 1], dim=1)
+        #print(f'out.shape : {out.shape}');    exit()#   4, 2160, 3840
+        fgr, pha = out.split([3, 1], dim=1)     #   3, 2160, 3840   1, 2160, 3840
         return fgr, pha
     
     def forward_time_series(self, fine_src, base_src, base_fgr, base_pha, base_hid):
