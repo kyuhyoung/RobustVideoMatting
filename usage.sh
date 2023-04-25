@@ -221,9 +221,6 @@ ext=png
 #res_1=`${command_1}`
 #echo "result of command_1 : " ${res_1}
 #exit
-#for d_resol in 0001.hqset 0002.mqset
-#for d_resol in 0001.hqset
-#for d_resol in 0001.hqset_5
 dir_root=/data/matting/tmp/hand_video_seqs_png
 dir_out=./output/hand_video_png
 #cmd_1="find ${dir_root} -type f -name '*.${ext}' -printf '%h\n' | sort -u | sed 's|^|$PWD/|'"
