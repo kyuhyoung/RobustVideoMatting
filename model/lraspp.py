@@ -15,11 +15,14 @@ class LRASPP(nn.Module):
         )
         
     def forward_single_frame(self, x):
+        #t0 = self.aspp1(x); t1 = self.aspp2(x); t2 = t0 * t1;   print(f't0.shape : {t0.shape}, t1.shape : {t1.shape}, t2.shape : {t2.shape}'); #   t0 : 1, 128, 18, 32     t1 : 1, 128, 1, 1   t2 : 1, 128, 18, 32     exit()
         return self.aspp1(x) * self.aspp2(x)
     
     def forward_time_series(self, x):
+        #print(f'x.shape : {x.shape}');  exit()
         B, T = x.shape[:2]
         x = self.forward_single_frame(x.flatten(0, 1)).unflatten(0, (B, T))
+        #print(f'x.shape : {x.shape}');  #   1, 1, 128, 18, 32   #exit()
         return x
     
     def forward(self, x):

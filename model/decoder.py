@@ -18,12 +18,22 @@ class RecurrentDecoder(nn.Module):
                 s0: Tensor, f1: Tensor, f2: Tensor, f3: Tensor, f4: Tensor,
                 r1: Optional[Tensor], r2: Optional[Tensor],
                 r3: Optional[Tensor], r4: Optional[Tensor]):
+        
+        #   r1 : None    r2 : None     r3 : None      r4 : None
+        #   f1 : 1, 16, 144, 256    f2 : 1, 24, 72, 128     f3 : 1, 40, 36, 64      f4 : 1, 128, 18, 32
         s1, s2, s3 = self.avgpool(s0)
+        #print(f's1.shape : {s1.shape}, s2.shape : {s2.shape}, s3.shape : {s3.shape}');  
+        #   s1 : 1, 1, 3, 144, 256      s2 : 1, 1, 3, 72, 128       s3 : 1, 1, 3, 36, 64    #   exit()
         x4, r4 = self.decode4(f4, r4)
+        #   x4 : 128, 18, 32
         x3, r3 = self.decode3(x4, f3, s3, r3)
+        #print(f'x3.shape : {x3.shape}');    exit()  #   80, 36, 64 
         x2, r2 = self.decode2(x3, f2, s2, r2)
+        #print(f'x2.shape : {x2.shape}');    exit()  #   40, 72, 128 
         x1, r1 = self.decode1(x2, f1, s1, r1)
+        #print(f'x1.shape : {x1.shape}');    exit()  #   32, 144, 256 
         x0 = self.decode0(x1, s0)
+        #print(f'x0.shape : {x0.shape}');    exit()  #   16, 288, 512 
         return x0, r1, r2, r3, r4
     
 
@@ -62,8 +72,12 @@ class BottleneckBlock(nn.Module):
         
     def forward(self, x, r: Optional[Tensor]):
         a, b = x.split(self.channels // 2, dim=-3)
+        #print(f'x.shape : {x.shape}, a.shape : {a.shape}, b.shape : {b.shape}');    exit()
+        #   x : 128, 18, 32     a : 64, 18, 32       b : 64, 18, 32  
         b, r = self.gru(b, r)
+        #print(f'b.shape : {b.shape}');    # 64, 18, 32  #exit()
         x = torch.cat([a, b], dim=-3)
+        #print(f'x.shape : {x.shape}');    128, 18, 32  #exit()
         return x, r
 
     
@@ -90,18 +104,29 @@ class UpsamplingBlock(nn.Module):
         return x, r
     
     def forward_time_series(self, x, f, s, r: Optional[Tensor]):
-        B, T, _, H, W = s.shape
+        B, T, _, H, W = s.shape     #   1, 1, 3, 36, 64
         x = x.flatten(0, 1)
         f = f.flatten(0, 1)
         s = s.flatten(0, 1)
+        #shall_debug = 40 == x.shape[1]
+        #if shall_debug:
+        #    print(f'x.shape b4 : {x.shape}');   exit()       #   1, 128, 18 32   //  1, 80, 36, 64 //  1, 40, 72, 128
         x = self.upsample(x)
-        x = x[:, :, :H, :W]
+        #print(f'x.shape after : {x.shape}');       #   1, 128, 36, 64  //  1, 80, 72, 128          
+        x = x[:, :, :H, :W]                     #   128, 36, 64
+        #if shall_debug:
+        #    print(f'x.shape after 2 : {x.shape}');  #   1, 128, 36, 64  //  1, 80, 72, 128  //  1, 40, 144, 256    
         x = torch.cat([x, f, s], dim=1)
+        #if shall_debug:
+        #    print(f'x.shape after 3 : {x.shape}');  #   1, 171, 36, 64  //  1, 107, 72, 128 //  1, 59, 144, 256
         x = self.conv(x)
+        #if shall_debug:
+        #    print(f'x.shape after 4 : {x.shape}');  # 1, 80, 36, 64 //  1, 40, 72, 128  //  1, 32, 144, 256  
         x = x.unflatten(0, (B, T))
         a, b = x.split(self.out_channels // 2, dim=2)
         b, r = self.gru(b, r)
         x = torch.cat([a, b], dim=2)
+        #print(f'x.shape after 5 : {x.shape}');    exit()# 80, 36, 64
         return x, r
     
     def forward(self, x, f, s, r: Optional[Tensor]):
@@ -133,12 +158,16 @@ class OutputBlock(nn.Module):
     
     def forward_time_series(self, x, s):
         B, T, _, H, W = s.shape
+        #print(f'x.shape : {x.shape}');     exit() #   32, 144, 256
         x = x.flatten(0, 1)
         s = s.flatten(0, 1)
         x = self.upsample(x)
+        #print(f'x.shape : {x.shape}');     exit() #   32, 288, 512
         x = x[:, :, :H, :W]
         x = torch.cat([x, s], dim=1)
+        #print(f'x.shape : {x.shape}');     exit() #   35, 288, 512
         x = self.conv(x)
+        #print(f'x.shape : {x.shape}');     exit() #   16, 288, 512
         x = x.unflatten(0, (B, T))
         return x
     
@@ -200,6 +229,11 @@ class Projection(nn.Module):
     
     def forward_time_series(self, x):
         B, T = x.shape[:2]
+        #print(f'x.shape : {x.shape}');  exit()  #   16, 288, 512
+        #t0 = self.conv(x.flatten(0, 1)).unflatten(0, (B, T))
+        #print(f't0.shape : {t0.shape}');  exit()  #   4, 288, 512
+        #t1, t2 = ha = t0.split([3, 1], dim=-3)
+        #print(f't1.shape : {t1.shape}, t2.shape : {t2.shape}');  exit()  #   t1 : 3, 288, 512   t2 : 1, 288, 512
         return self.conv(x.flatten(0, 1)).unflatten(0, (B, T))
         
     def forward(self, x):

@@ -395,7 +395,9 @@ class Converter:
         self.precision = torch.float32 if precision == 'float32' else torch.float16
         self.model = MattingNetwork(variant).eval().to(device, self.precision)
         self.model.load_state_dict(torch.load(checkpoint, map_location=device))
-        self.model = torch.jit.script(self.model);  self.model = torch.jit.freeze(self.model)
+        
+        #self.model = torch.jit.script(self.model);  self.model = torch.jit.freeze(self.model)
+        
         self.device = device
     
     def convert(self, *args, **kwargs):

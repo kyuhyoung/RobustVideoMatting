@@ -224,7 +224,7 @@ ext=png
 #for d_resol in 0001.hqset 0002.mqset
 #for d_resol in 0001.hqset
 #for d_resol in 0001.hqset_5
-dir_root=/data/matting/hand_video_png
+dir_root=/data/matting/tmp/hand_video_seqs_png
 dir_out=./output/hand_video_png
 #cmd_1="find ${dir_root} -type f -name '*.${ext}' -printf '%h\n' | sort -u | sed 's|^|$PWD/|'"
 cmd_1="ls -d ${dir_root}/*/"
@@ -246,8 +246,8 @@ do
 		#echo "idx : ${idx}";	exit;
 		d_out_comp=${d_out}/${idx}/com
 		mkdir -p ${d_out_comp}
-		#exit
 		python3 inference.py --variant mobilenetv3 --checkpoint rvm_mobilenetv3.pth --device cuda:0 --ext ${ext} --input-source ${d_img} --output-type png_sequence --output-composition ${d_out_comp} --str-rgb-bg 255_0_0
+		exit
 	done
 done    
 #END

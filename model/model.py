@@ -19,7 +19,7 @@ class MattingNetwork(nn.Module):
         super().__init__()
         assert variant in ['mobilenetv3', 'resnet50']
         assert refiner in ['fast_guided_filter', 'deep_guided_filter']
-        
+        #print(f'pretrained_backbone : {pretrained_backbone}');  #   False exit() 
         if variant == 'mobilenetv3':
             self.backbone = MobileNetV3LargeEncoder(pretrained_backbone)
             self.aspp = LRASPP(960, 128)
@@ -46,15 +46,18 @@ class MattingNetwork(nn.Module):
                 downsample_ratio: float = 1,
                 segmentation_pass: bool = False):
         
+        #print(f'src.shape : {src.shape}');   # 1, 1, 3, 2160, 3840 #exit()    
         if downsample_ratio != 1:
             #print('a'); 
             src_sm = self._interpolate(src, scale_factor=downsample_ratio)
         else:
             #print('b');
             src_sm = src
+        #print(f'src.shape : {src.shape}, downsample_ratio : {downsample_ratio}, src_sm.shape : {src_sm.shape}');   exit()
         f1, f2, f3, f4 = self.backbone(src_sm)
         f4 = self.aspp(f4)
         hid, *rec = self.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
+        #print(f'hid.shape : {hid.shape}');    exit()  #   16, 288, 512 
         #print('segmentation_pass :', segmentation_pass);    return; 
         if not segmentation_pass:
             fgr_residual, pha = self.project_mat(hid).split([3, 1], dim=-3)

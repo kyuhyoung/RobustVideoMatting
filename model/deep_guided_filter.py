@@ -22,23 +22,35 @@ class DeepGuidedFilterRefiner(nn.Module):
         )
         
     def forward_single_frame(self, fine_src, base_src, base_fgr, base_pha, base_hid):
+        #print(f'fine_src.shape : {fine_src.shape}, base_src.shape : {base_src.shape}, base_fgr.shape : {base_fgr.shape}, base_pha.shape : {base_pha.shape}, base_hid.shape : {base_hid.shape}');    exit() 
+        #   fine_src : 3, 2160, 3840    base_src : 3, 288, 512  base_fgr : 3, 288, 512  base_pha : 1, 288, 512  base_hid : 16, 288, 512
         fine_x = torch.cat([fine_src, fine_src.mean(1, keepdim=True)], dim=1)
+        #print(f'fine_x.shape : {fine_x.shape}');    exit()  #   4, 2160, 3840 
         base_x = torch.cat([base_src, base_src.mean(1, keepdim=True)], dim=1)
-        base_y = torch.cat([base_fgr, base_pha], dim=1)
+        #print(f'base_x.shape : {base_x.shape}');    exit()  #   4, 288, 512
+        base_y = torch.cat([base_fgr, base_pha], dim=1)     
+        #print(f'base_y.shape : {base_y.shape}');    exit()  #   4, 288, 512
         
         mean_x = self.box_filter(base_x)
+        #print(f'mean_x.shape : {mean_x.shape}');    #exit()  #   4, 288, 512
         mean_y = self.box_filter(base_y)
+        #print(f'mean_y.shape : {mean_y.shape}');    #exit()  #   4, 288, 512
         cov_xy = self.box_filter(base_x * base_y) - mean_x * mean_y
+        #print(f'cov_xy.shape : {cov_xy.shape}');    #exit()  #   4, 288, 512
         var_x  = self.box_filter(base_x * base_x) - mean_x * mean_x
+        #print(f'var_x.shape : {var_x.shape}');    #exit()  #   4, 288, 512
         
+        #t0 = torch.cat([cov_xy, var_x, base_hid], dim=1);   print(f't0.shape : {t0.shape}');    #   24, 288, 512
         A = self.conv(torch.cat([cov_xy, var_x, base_hid], dim=1))
-        b = mean_y - A * mean_x
+        #print(f'A.shape : {A.shape}');    exit()#   4, 288, 512
+        b = mean_y - A * mean_x                 #   4, 288, 512
         
-        H, W = fine_src.shape[2:]
+        H, W = fine_src.shape[2:]               #   2160, 3840
         A = F.interpolate(A, (H, W), mode='bilinear', align_corners=False)
         b = F.interpolate(b, (H, W), mode='bilinear', align_corners=False)
         
         out = A * fine_x + b
+        print(f'out.shape : {out.shape}');    exit()#   4, 288, 512
         fgr, pha = out.split([3, 1], dim=1)
         return fgr, pha
     

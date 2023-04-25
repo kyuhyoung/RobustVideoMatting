@@ -35,6 +35,7 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         del self.classifier
         
     def forward_single_frame(self, x):
+        #print(f'x.shape : {x.shape}')   #   1, 3, 288, 512  #exit()
         #print('torch.max(x) b4 : {}, torch.min(x) b4 : {}'.format(torch.max(x), torch.min(x)))          #   torch.max(x) : 1.0, torch.min(x) : 0.0
         x = normalize(x, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         #print('torch.max(x) after : {}, torch.min(x) after : {}'.format(torch.max(x), torch.min(x)))    #   torch.max(x) : 2.64, torch.min(x) : -2.12
@@ -60,15 +61,22 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         x = self.features[15](x)
         x = self.features[16](x)
         f4 = x
+        #print(f'f1.shape : {f1.shape}, f2.shape : {f2.shape}, f3.shape : {f3.shape}, f4.shape : {f4.shape}');   exit()
+        #   f1 : 1, 16, 144, 256    f2 : 1, 24, 72, 128     f3 : 1, 40, 36, 64      f4 : 1, 960, 18, 32
         return [f1, f2, f3, f4]
     
     def forward_time_series(self, x):
+        #print(f'x.shape : {x.shape}');  #   1, 1, 3, 288, 512   #exit()
         B, T = x.shape[:2]
+        #t0 = x.flatten(0, 1);   print(f't0.shape : {t0.shape}');    #   1, 3, 288, 512  #exit()
         features = self.forward_single_frame(x.flatten(0, 1))
+        #   features[0] : 1, 16, 144, 256    features[1] : 1, 24, 72, 128     features[2] : 1, 40, 36, 64      features[3] : 1, 960, 18, 32
         features = [f.unflatten(0, (B, T)) for f in features]
+        #   features[0] : 1, 1, 16, 144, 256    features[1] : 1, 1, 24, 72, 128     features[2] : 1, 1, 1, 40, 36, 64      features[3] : 1, 1, 960, 18, 32
         return features
 
     def forward(self, x):
+        #print(f'x.ndim : {x.ndim}');    #   5   #exit()
         if x.ndim == 5:
             return self.forward_time_series(x)
         else:
