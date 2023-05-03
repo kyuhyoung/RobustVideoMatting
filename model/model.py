@@ -7,9 +7,78 @@ from typing import Optional, List
 from .mobilenetv3 import MobileNetV3LargeEncoder
 from .resnet import ResNet50Encoder
 from .lraspp import LRASPP
-from .decoder import RecurrentDecoder, Projection
+from .decoder import RecurrentDecoder, Projection, ConvGRU
 from .fast_guided_filter import FastGuidedFilterRefiner
 from .deep_guided_filter import DeepGuidedFilterRefiner
+
+class MattFootNetwork(nn.Module):
+    def __init__(self, 
+                matt_weight_path,
+                variant: str = 'mobilenetv3',
+                matt_ref: str = 'deep_guided_filter',
+                pretrained_backbone: bool = False):
+        super().__init__()
+        self.net_matt = MattingNetwork(variant, matt_ref, pretrained_backbone)
+        print(f'matt_weight_path : {matt_weight_path}');    #exit()
+        self.net_matt.load_state_dict(torch.load(matt_weight_path))
+
+        # freeze the weights of HumanSegmentationNet
+        for param in self.net_matt.parameters():
+            param.requires_grad = False
+
+        if variant == 'mobilenetv3':
+            self.net_foot = FootPosNetwork(128, 24) 
+        else:
+            #   TODO
+            self.net_foot = FootPosNetwork(128, 24) 
+             
+    def forward(self,
+                src: Tensor,
+                r1_matt: Optional[Tensor] = None,
+                r2_matt: Optional[Tensor] = None,
+                r3_matt: Optional[Tensor] = None,
+                r4_matt: Optional[Tensor] = None,
+                r_foot: Optional[Tensor] = None,
+                downsample_ratio: float = 1,
+                segmentation_pass: bool = False):
+        out_matt, r1_matt, r2_matt, r3_matt, r4_matt, in_foot = self.net_matt(src, r1_matt, r2_matt, r3_matt, r4_matt, downsample_ratio)                 
+        out_foot = self.net_foot(in_foot, r_foot)
+        return out_matt, r1_matt, r2_matt, r3_matt, r4_matt, out_foot
+
+
+class FootPosNetwork(nn.Module):
+    def __init__(self, n_in_aspp, n_mid_aspp):
+        super().__init__()
+        self.aspp1 = LRASPP(n_in_aspp, n_mid_aspp)
+        self.gru = ConvGRU(n_mid_aspp // 2)
+        #self.upsample1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.aspp2 = LRASPP(n_mid_aspp, 1)
+
+
+    def forward_single_frame(self, x):
+        x = self.aspp1(x)
+        x = self.gru(x)
+        x = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)(x)
+        x = self.aspp2(x)
+        x = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)(x)
+        return x
+    
+    def forward_time_series(self, x):
+        B, T = s0.shape[:2]
+        x = x.flatten(0, 1)
+        x = self.forward_single_frame(x)
+        x = x.unflatten(0, (B, T))
+        return x
+    
+    def forward(self, x):
+        if x.ndim == 5:
+            return self.forward_time_series(x)
+        else:
+            return self.forward_single_frame(x)
+
+
+
+
 
 class MattingNetwork(nn.Module):
     def __init__(self,

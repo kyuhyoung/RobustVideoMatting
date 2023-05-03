@@ -24,7 +24,8 @@ class RecurrentDecoder(nn.Module):
         s1, s2, s3 = self.avgpool(s0)
         #print(f's1.shape : {s1.shape}, s2.shape : {s2.shape}, s3.shape : {s3.shape}');  
         #   s1 : 1, 1, 3, 144, 256      s2 : 1, 1, 3, 72, 128       s3 : 1, 1, 3, 36, 64    #   exit()
-        x4, r4 = self.decode4(f4, r4)
+        if 'matt' == self.purpose:
+            x4, r4,  = self.decode4(f4, r4)
         #   x4 : 128, 18, 32
         x3, r3 = self.decode3(x4, f3, s3, r3)
         #print(f'x3.shape : {x3.shape}');    exit()  #   80, 36, 64 
@@ -34,7 +35,7 @@ class RecurrentDecoder(nn.Module):
         #print(f'x1.shape : {x1.shape}');    exit()  #   32, 144, 256 
         x0 = self.decode0(x1, s0)
         #print(f'x0.shape : {x0.shape}');    exit()  #   16, 288, 512 
-        return x0, r1, r2, r3, r4
+        return x0, r1, r2, r3, r4, 
     
 
 class AvgPool(nn.Module):

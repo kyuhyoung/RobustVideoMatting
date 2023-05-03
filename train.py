@@ -98,6 +98,7 @@ from tqdm import tqdm
 from inference_utils import rm_and_mkdir, tensor_0_1_to_ndarray_0_255, concatenate_images
 from utils import get_exact_file_name_from_path
 
+from dataset.videofoot import VideoFootDataset
 
 from dataset.videomatte import (
     VideoMatteDataset,
@@ -141,7 +142,8 @@ from dataset.augmentation import (
     ValidFrameSampler
 )
 
-from model import MattingNetwork
+#from model import MattingNetwork
+from model import MattFootNetwork
 from train_config import DATA_PATHS
 from train_loss import matting_loss, segmentation_loss
 
@@ -196,6 +198,11 @@ class Trainer:
         parser.add_argument('--disable-progress-bar', action='store_true')
         parser.add_argument('--disable-validation', action='store_true')
         parser.add_argument('--disable-mixed-precision', action='store_true')
+        #   Foot pos est.
+        parser.add_argument('--pretrained_rvm', type = str)
+        parser.add_argument('--is_foot', action='store_true')
+        parser.add_argument('--learning_rate_foot_pos', type=float, required=True)
+
         self.args = parser.parse_args()
         
     def init_distributed(self, rank, world_size):
@@ -208,179 +215,198 @@ class Trainer:
     
     def init_datasets(self):
         self.log('Initializing matting datasets')
-        size_hr = (self.args.resolution_hr, self.args.resolution_hr)
-        size_lr = (self.args.resolution_lr, self.args.resolution_lr)
-        
-        # Matting datasets:
-        if self.args.dataset == 'videomatte':
-            self.dataset_lr_train = VideoMatteDataset(
-                is_hair = self.args.is_hair,
-                #videomatte_dir=DATA_PATHS['videomatte']['train'],
-                videomatte_dir = DATA_PATHS['videomatte']['train_hair'] if self.args.is_hair else DATA_PATHS['videomatte']['train_portrait'],
-                background_image_dir=DATA_PATHS['background_images']['train'],
-                background_video_dir=DATA_PATHS['background_videos']['train'],
-                size=self.args.resolution_lr,
-                seq_length=self.args.seq_length_lr,
-                #seq_sampler=TrainFrameSampler(),
-                seq_sampler = TrainFrameSampler(speed = [1]) if self.args.is_hair else TrainFrameSampler(),
-                transform=VideoMatteTrainAugmentation(size_lr))
-            if self.args.train_hr:
-                self.dataset_hr_train = VideoMatteDataset(
+        self.is_foot = self.args.is_foot
+        if self.is_foot:
+            self.dataset_train = VideoFootDataset(
+                videofoot_dir = DATA_PATHS['videofoot']['train'], 
+                seq_length = self.args.seq_length_foot,
+                seq_sampler = TrainFrameSampler())
+            self.dataset_valid = VideoFootDataset(
+                videofoot_dir = DATA_PATHS['videofoot']['valid'],
+                seq_length = self.args.seq_length_foot,
+                seq_sampler = ValidFrameSampler())
+            self.datasampler_train = DistributedSampler(dataset = self.dataset_train, rank = self.rank, num_replicas = self.world_size, shuffle = True)
+            self.dataloader_train = DataLoader(dataset = self.dataset_train, batch_size = self.args.batch_size_per_gpu, num_worker = self.args.num_workers, sampler = self.datasampler_train, pin_memory = True)       
+            self.dataloader_valid = DataLoader(dataset = self.dataset_valid, batch_size = self.args.batch_size_per_gpu, num_workers = self.args.num_workers, pin_memory = True)
+        else:
+            size_hr = (self.args.resolution_hr, self.args.resolution_hr)
+            size_lr = (self.args.resolution_lr, self.args.resolution_lr)
+            # Matting datasets:
+            if self.args.dataset == 'videomatte':
+                self.dataset_lr_train = VideoMatteDataset(
                     is_hair = self.args.is_hair,
                     #videomatte_dir=DATA_PATHS['videomatte']['train'],
                     videomatte_dir = DATA_PATHS['videomatte']['train_hair'] if self.args.is_hair else DATA_PATHS['videomatte']['train_portrait'],
                     background_image_dir=DATA_PATHS['background_images']['train'],
                     background_video_dir=DATA_PATHS['background_videos']['train'],
-                    size=self.args.resolution_hr,
-                    seq_length=self.args.seq_length_hr,
+                    size=self.args.resolution_lr,
+                    seq_length=self.args.seq_length_lr,
                     #seq_sampler=TrainFrameSampler(),
                     seq_sampler = TrainFrameSampler(speed = [1]) if self.args.is_hair else TrainFrameSampler(),
-                    transform=VideoMatteTrainAugmentation(size_hr))
-            self.dataset_valid = VideoMatteDataset(
-                is_hair = self.args.is_hair,
-                #videomatte_dir=DATA_PATHS['videomatte']['valid'],
-                videomatte_dir = DATA_PATHS['videomatte']['valid_hair'] if self.args.is_hair else DATA_PATHS['videomatte']['valid_portrait'],
-                background_image_dir=DATA_PATHS['background_images']['valid'],
-                background_video_dir=DATA_PATHS['background_videos']['valid'],
-                size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
-                seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
-                seq_sampler=ValidFrameSampler(),
-                transform=VideoMatteValidAugmentation(size_hr if self.args.train_hr else size_lr))
-        else:
-            self.dataset_lr_train = ImageMatteDataset(
-                imagematte_dir=DATA_PATHS['imagematte']['train'],
-                background_image_dir=DATA_PATHS['background_images']['train'],
-                background_video_dir=DATA_PATHS['background_videos']['train'],
-                size=self.args.resolution_lr,
-                seq_length=self.args.seq_length_lr,
-                seq_sampler=TrainFrameSampler(),
-                transform=ImageMatteAugmentation(size_lr))
-            if self.args.train_hr:
-                self.dataset_hr_train = ImageMatteDataset(
+                    transform=VideoMatteTrainAugmentation(size_lr))
+                if self.args.train_hr:
+                    self.dataset_hr_train = VideoMatteDataset(
+                        is_hair = self.args.is_hair,
+                        #videomatte_dir=DATA_PATHS['videomatte']['train'],
+                        videomatte_dir = DATA_PATHS['videomatte']['train_hair'] if self.args.is_hair else DATA_PATHS['videomatte']['train_portrait'],
+                        background_image_dir=DATA_PATHS['background_images']['train'],
+                        background_video_dir=DATA_PATHS['background_videos']['train'],
+                        size=self.args.resolution_hr,
+                        seq_length=self.args.seq_length_hr,
+                        #seq_sampler=TrainFrameSampler(),
+                        seq_sampler = TrainFrameSampler(speed = [1]) if self.args.is_hair else TrainFrameSampler(),
+                        transform=VideoMatteTrainAugmentation(size_hr))
+                self.dataset_valid = VideoMatteDataset(
+                    is_hair = self.args.is_hair,
+                    #videomatte_dir=DATA_PATHS['videomatte']['valid'],
+                    videomatte_dir = DATA_PATHS['videomatte']['valid_hair'] if self.args.is_hair else DATA_PATHS['videomatte']['valid_portrait'],
+                    background_image_dir=DATA_PATHS['background_images']['valid'],
+                    background_video_dir=DATA_PATHS['background_videos']['valid'],
+                    size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
+                    seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
+                    seq_sampler=ValidFrameSampler(),
+                    transform=VideoMatteValidAugmentation(size_hr if self.args.train_hr else size_lr))
+            else:
+                self.dataset_lr_train = ImageMatteDataset(
                     imagematte_dir=DATA_PATHS['imagematte']['train'],
                     background_image_dir=DATA_PATHS['background_images']['train'],
                     background_video_dir=DATA_PATHS['background_videos']['train'],
-                    size=self.args.resolution_hr,
-                    seq_length=self.args.seq_length_hr,
+                    size=self.args.resolution_lr,
+                    seq_length=self.args.seq_length_lr,
                     seq_sampler=TrainFrameSampler(),
-                    transform=ImageMatteAugmentation(size_hr))
-            self.dataset_valid = ImageMatteDataset(
-                imagematte_dir=DATA_PATHS['imagematte']['valid'],
-                background_image_dir=DATA_PATHS['background_images']['valid'],
-                background_video_dir=DATA_PATHS['background_videos']['valid'],
-                size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
-                seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
-                seq_sampler=ValidFrameSampler(),
-                transform=ImageMatteAugmentation(size_hr if self.args.train_hr else size_lr))
+                    transform=ImageMatteAugmentation(size_lr))
+                if self.args.train_hr:
+                    self.dataset_hr_train = ImageMatteDataset(
+                        imagematte_dir=DATA_PATHS['imagematte']['train'],
+                        background_image_dir=DATA_PATHS['background_images']['train'],
+                        background_video_dir=DATA_PATHS['background_videos']['train'],
+                        size=self.args.resolution_hr,
+                        seq_length=self.args.seq_length_hr,
+                        seq_sampler=TrainFrameSampler(),
+                        transform=ImageMatteAugmentation(size_hr))
+                self.dataset_valid = ImageMatteDataset(
+                    imagematte_dir=DATA_PATHS['imagematte']['valid'],
+                    background_image_dir=DATA_PATHS['background_images']['valid'],
+                    background_video_dir=DATA_PATHS['background_videos']['valid'],
+                    size=self.args.resolution_hr if self.args.train_hr else self.args.resolution_lr,
+                    seq_length=self.args.seq_length_hr if self.args.train_hr else self.args.seq_length_lr,
+                    seq_sampler=ValidFrameSampler(),
+                    transform=ImageMatteAugmentation(size_hr if self.args.train_hr else size_lr))
+                
+            # Matting dataloaders:
+            self.datasampler_lr_train = DistributedSampler(
+                dataset=self.dataset_lr_train,
+                rank=self.rank,
+                num_replicas=self.world_size,
+                shuffle=True)
+            self.dataloader_lr_train = DataLoader(
+                dataset=self.dataset_lr_train,
+                batch_size=self.args.batch_size_per_gpu,
+                num_workers=self.args.num_workers,
+                sampler=self.datasampler_lr_train,
+                pin_memory=True)
+            if self.args.train_hr:
+                self.datasampler_hr_train = DistributedSampler(
+                    dataset=self.dataset_hr_train,
+                    rank=self.rank,
+                    num_replicas=self.world_size,
+                    shuffle=True)
+                self.dataloader_hr_train = DataLoader(
+                    dataset=self.dataset_hr_train,
+                    batch_size=self.args.batch_size_per_gpu,
+                    num_workers=self.args.num_workers,
+                    sampler=self.datasampler_hr_train,
+                    pin_memory=True)
+            self.dataloader_valid = DataLoader(
+                dataset=self.dataset_valid,
+                batch_size=self.args.batch_size_per_gpu,
+                num_workers=self.args.num_workers,
+                pin_memory=True)
             
-        # Matting dataloaders:
-        self.datasampler_lr_train = DistributedSampler(
-            dataset=self.dataset_lr_train,
-            rank=self.rank,
-            num_replicas=self.world_size,
-            shuffle=True)
-        self.dataloader_lr_train = DataLoader(
-            dataset=self.dataset_lr_train,
-            batch_size=self.args.batch_size_per_gpu,
-            num_workers=self.args.num_workers,
-            sampler=self.datasampler_lr_train,
-            pin_memory=True)
-        if self.args.train_hr:
-            self.datasampler_hr_train = DistributedSampler(
-                dataset=self.dataset_hr_train,
+            # Segementation datasets
+            self.log('Initializing image segmentation datasets')
+            if self.args.is_hair:
+                self.dataset_seg_image = ConcatDataset([
+                    Figaro1kDataset(
+                        imgdir=DATA_PATHS['figaro1k']['imgdir'],
+                        segdir=DATA_PATHS['figaro1k']['segdir'],
+                        transform=CocoPanopticTrainAugmentation(size_lr)),
+                    CelebAMaskDataset(
+                        root_dir = DATA_PATHS['celeb_a_mask_hq']['rootdir'],
+                        is_train = True,
+                        #segdir=DATA_PATHS['celeb_a_mask_hq']['segdir'],
+                        transforms=CocoPanopticTrainAugmentation(size_lr))
+                ])
+            else:
+                self.dataset_seg_image = ConcatDataset([
+                    CocoPanopticDataset(
+                        imgdir=DATA_PATHS['coco_panoptic']['imgdir'],
+                        anndir=DATA_PATHS['coco_panoptic']['anndir'],
+                        annfile=DATA_PATHS['coco_panoptic']['annfile'],
+                        transform=CocoPanopticTrainAugmentation(size_lr)),
+                    SuperviselyPersonDataset(
+                        imgdir=DATA_PATHS['spd']['imgdir'],
+                        segdir=DATA_PATHS['spd']['segdir'],
+                        transform=CocoPanopticTrainAugmentation(size_lr))
+                ])
+            self.datasampler_seg_image = DistributedSampler(
+                dataset=self.dataset_seg_image,
                 rank=self.rank,
                 num_replicas=self.world_size,
                 shuffle=True)
-            self.dataloader_hr_train = DataLoader(
-                dataset=self.dataset_hr_train,
-                batch_size=self.args.batch_size_per_gpu,
+            self.dataloader_seg_image = DataLoader(
+                dataset=self.dataset_seg_image,
+                batch_size=self.args.batch_size_per_gpu * self.args.seq_length_lr,
                 num_workers=self.args.num_workers,
-                sampler=self.datasampler_hr_train,
+                sampler=self.datasampler_seg_image,
                 pin_memory=True)
-        self.dataloader_valid = DataLoader(
-            dataset=self.dataset_valid,
-            batch_size=self.args.batch_size_per_gpu,
-            num_workers=self.args.num_workers,
-            pin_memory=True)
-        
-        # Segementation datasets
-        self.log('Initializing image segmentation datasets')
-        if self.args.is_hair:
-            self.dataset_seg_image = ConcatDataset([
-                Figaro1kDataset(
-                    imgdir=DATA_PATHS['figaro1k']['imgdir'],
-                    segdir=DATA_PATHS['figaro1k']['segdir'],
-                    transform=CocoPanopticTrainAugmentation(size_lr)),
-                CelebAMaskDataset(
-                    root_dir = DATA_PATHS['celeb_a_mask_hq']['rootdir'],
-                    is_train = True,
-                    #segdir=DATA_PATHS['celeb_a_mask_hq']['segdir'],
-                    transforms=CocoPanopticTrainAugmentation(size_lr))
-            ])
-        else:
-            self.dataset_seg_image = ConcatDataset([
-                CocoPanopticDataset(
-                    imgdir=DATA_PATHS['coco_panoptic']['imgdir'],
-                    anndir=DATA_PATHS['coco_panoptic']['anndir'],
-                    annfile=DATA_PATHS['coco_panoptic']['annfile'],
-                    transform=CocoPanopticTrainAugmentation(size_lr)),
-                SuperviselyPersonDataset(
-                    imgdir=DATA_PATHS['spd']['imgdir'],
-                    segdir=DATA_PATHS['spd']['segdir'],
-                    transform=CocoPanopticTrainAugmentation(size_lr))
-            ])
-        self.datasampler_seg_image = DistributedSampler(
-            dataset=self.dataset_seg_image,
-            rank=self.rank,
-            num_replicas=self.world_size,
-            shuffle=True)
-        self.dataloader_seg_image = DataLoader(
-            dataset=self.dataset_seg_image,
-            batch_size=self.args.batch_size_per_gpu * self.args.seq_length_lr,
-            num_workers=self.args.num_workers,
-            sampler=self.datasampler_seg_image,
-            pin_memory=True)
-       
-        if False == self.args.is_hair: 
-            self.log('Initializing video segmentation datasets')
-            self.dataset_seg_video = YouTubeVISDataset(
-                videodir=DATA_PATHS['youtubevis']['videodir'],
-                annfile=DATA_PATHS['youtubevis']['annfile'],
-                size=self.args.resolution_lr,
-                seq_length=self.args.seq_length_lr,
-                seq_sampler=TrainFrameSampler(speed=[1]),
-                transform=YouTubeVISAugmentation(size_lr))
-            self.datasampler_seg_video = DistributedSampler(
-                dataset=self.dataset_seg_video,
-                rank=self.rank,
-                num_replicas=self.world_size,
-                shuffle=True)
-            self.dataloader_seg_video = DataLoader(
-                dataset=self.dataset_seg_video,
-                batch_size=self.args.batch_size_per_gpu,
-                num_workers=self.args.num_workers,
-                sampler=self.datasampler_seg_video,
-                pin_memory=True)
+           
+            if False == self.args.is_hair: 
+                self.log('Initializing video segmentation datasets')
+                self.dataset_seg_video = YouTubeVISDataset(
+                    videodir=DATA_PATHS['youtubevis']['videodir'],
+                    annfile=DATA_PATHS['youtubevis']['annfile'],
+                    size=self.args.resolution_lr,
+                    seq_length=self.args.seq_length_lr,
+                    seq_sampler=TrainFrameSampler(speed=[1]),
+                    transform=YouTubeVISAugmentation(size_lr))
+                self.datasampler_seg_video = DistributedSampler(
+                    dataset=self.dataset_seg_video,
+                    rank=self.rank,
+                    num_replicas=self.world_size,
+                    shuffle=True)
+                self.dataloader_seg_video = DataLoader(
+                    dataset=self.dataset_seg_video,
+                    batch_size=self.args.batch_size_per_gpu,
+                    num_workers=self.args.num_workers,
+                    sampler=self.datasampler_seg_video,
+                    pin_memory=True)
         
     def init_model(self):
         self.log('Initializing model')
-        self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
-        
+        if self.args.is_foot:
+            self.model = MattFootNetwork(self.args.pretrained_rvm, self.args.model_variant, pretrained_backbone=True).to(self.rank)
+        else:
+            self.model = MattingNetwork(self.args.model_variant, pretrained_backbone=True).to(self.rank)
         if self.args.checkpoint:
             self.log(f'Restoring from checkpoint: {self.args.checkpoint}')
             self.log(self.model.load_state_dict(
                 torch.load(self.args.checkpoint, map_location=f'cuda:{self.rank}')))
-            
         self.model = nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
         self.model_ddp = DDP(self.model, device_ids=[self.rank], broadcast_buffers=False, find_unused_parameters=True)
-        self.optimizer = Adam([
-            {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
-            {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
-            {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
-            {'params': self.model.project_mat.parameters(), 'lr': self.args.learning_rate_decoder},
-            {'params': self.model.project_seg.parameters(), 'lr': self.args.learning_rate_decoder},
-            {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
-        ])
+        
+        if self.args.is_foot:
+            self.optimizer = Adam(self.model.parameters(), lr = self.args.learning_rate_foot_pos)
+        else:
+            self.optimizer = Adam([
+                {'params': self.model.backbone.parameters(), 'lr': self.args.learning_rate_backbone},
+                {'params': self.model.aspp.parameters(), 'lr': self.args.learning_rate_aspp},
+                {'params': self.model.decoder.parameters(), 'lr': self.args.learning_rate_decoder},
+                {'params': self.model.project_mat.parameters(), 'lr': self.args.learning_rate_decoder},
+                {'params': self.model.project_seg.parameters(), 'lr': self.args.learning_rate_decoder},
+                {'params': self.model.refiner.parameters(), 'lr': self.args.learning_rate_refiner},
+            ])
+
         self.scaler = GradScaler()
         
     def init_writer(self):
@@ -399,7 +425,10 @@ class Trainer:
         tu_fgr_pha_bgr_li_fn = None
         for epoch in range(self.args.epoch_start, self.args.epoch_end):
             self.epoch = epoch
-            self.step = epoch * len(self.dataloader_lr_train)
+            if self.is_foot:
+                self.step = epoch * len(self.dataloader_train)
+            else:
+                self.step = epoch * len(self.dataloader_lr_train)
             '''
             if not self.args.disable_validation:
                 self.validate()
@@ -474,9 +503,6 @@ class Trainer:
                         #self.save(fn_save)
                         self.check_progress(dir_check, self.epoch, i_batch, tu_fgr_pha_bgr_li_fn)
                         self.log('Train check is done at self.step : {} and mocel is saved.'.format(self.step))
-                    
-                   
-                   
                     self.step += 1
                     i_batch += 1
 

@@ -1,13 +1,13 @@
-: << 'END'
+#: << 'END'
 #################################################################################################
 #
 #   train 
 #
 #   original training. 
 #
-python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --is_hair 
+python3 train.py --is_foot --pretrained_rvm rvm_mobilenetv3.pth --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning_rate_foot_pos 0.001 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 
 #python3 train.py --model-variant mobilenetv3 --dataset videomatte --resolution-lr 512 --seq-length-lr 15 --learning-rate-backbone 0.0001 --learning-rate-aspp 0.0002 --learning-rate-decoder 0.0002 --learning-rate-refiner 0 --checkpoint-dir checkpoint/stage1 --log-dir log/stage1 --epoch-start 0 --epoch-end 20 --checkpoint-save-interval 10 --disable-validation  
-END
+#END
 
 : << 'END'
 #################################################################################################
@@ -205,22 +205,10 @@ do
 done    
 END
 
-#: << 'END'
+: << 'END'
 #   inference on image seq. and save the composition and alpha to image seq.
-#dir_test=test/${vid_title}
-#dir_1=/data/k-hairstyle/Training/0002.mqset_mini
-#dir_1=/data/k-hairstyle/Training/0002.mqset
-#dir_1=/data/k-hairstyle/Training/0001.hqset
-#dir_1=/data/k-hairstyle/Validation/0002.mqset
-#dir_1=/data/k-hairstyle/Validation/0001.hqset
-#command_1="find ${dir_1} -mindepth 1 -maxdepth 1 -type d"
 #ext=jpg_jpeg
-#ext=jpeg
 ext=png
-#echo "command_1 : ${command_1}"
-#res_1=`${command_1}`
-#echo "result of command_1 : " ${res_1}
-#exit
 dir_root=/data/matting/tmp/hand_video_seqs_png
 dir_out=./output/hand_video_png
 #cmd_1="find ${dir_root} -type f -name '*.${ext}' -printf '%h\n' | sort -u | sed 's|^|$PWD/|'"
@@ -247,7 +235,7 @@ do
 		exit
 	done
 done    
-#END
+END
 
  
 
