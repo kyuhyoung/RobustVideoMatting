@@ -1,4 +1,5 @@
 from torch import nn
+from inspect import getfile as gf, currentframe as cf
 
 class LRASPP(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -23,6 +24,7 @@ class LRASPP(nn.Module):
         return x
     
     def forward(self, x):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x)
         else:

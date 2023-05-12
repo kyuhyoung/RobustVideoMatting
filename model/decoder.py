@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from torch import nn
 from torch.nn import functional as F
+from inspect import getfile as gf, currentframe as cf
 
 from .onnx_helper import CustomOnnxCropToMatchSizeOp
 
@@ -9,12 +10,12 @@ from .onnx_helper import CustomOnnxCropToMatchSizeOp
     #x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
     #return x
 def _interpolate_kevin(x: Tensor, sz: torch.Size):
-    print('x.shape b4 :', x.shape);
-    print('type(sz) :', type(sz));# 
-    print('sz :', sz);  #exit(0)
+    #print('x.shape b4 :', x.shape);
+    #print('type(sz) :', type(sz));# 
+    #print('sz :', sz);  #exit(0)
     #print('type(s.shape) :', type(s.shape));    exit(0);
     x = F.interpolate(x, sz, mode='bilinear', align_corners=False)
-    print('x.shape after :', x.shape);  #exit(0)
+    #print('x.shape after :', x.shape);  #exit(0)
     return x
 
 
@@ -68,6 +69,7 @@ class AvgPool(nn.Module):
         return s1, s2, s3
     
     def forward(self, s0):
+        print(f's0.ndim : {s0.ndim} at {gf(cf())} {cf().f_lineno}')
         if s0.ndim == 5:
             return self.forward_time_series(s0)
         else:
@@ -106,10 +108,10 @@ class UpsamplingBlock(nn.Module):
     def forward_single_frame(self, x, f, s, r):
         #x = self.upsample(x)
         #x = F.interpolate(x, s.shape[2:], mode='bilinear', align_corners=False)
-        print('s.shape :', s.shape)
-        print('x.shape b4 :', x.shape)
+        #print('s.shape :', s.shape)
+        #print('x.shape b4 :', x.shape)
         x = _interpolate_kevin(x, s.shape[2:])
-        print('x.shape after :', x.shape);   #exit(0)
+        #print('x.shape after :', x.shape);   #exit(0)
         # if not torch.onnx.is_in_onnx_export():
             # x = x[:, :, :s.size(2), :s.size(3)]
         # else:
@@ -143,6 +145,7 @@ class UpsamplingBlock(nn.Module):
         return x, r
     
     def forward(self, x, f, s, r):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x, f, s, r)
         else:
@@ -188,6 +191,7 @@ class OutputBlock(nn.Module):
         return x
     
     def forward(self, x, s):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x, s)
         else:
@@ -201,7 +205,7 @@ class ConvGRU(nn.Module):
                  padding: int = 1):
         super().__init__()
         self.channels = channels
-        print(f'channels : {channels}, kernel_size : {kernel_size}');    #exit(0)
+        #print(f'channels : {channels}, kernel_size : {kernel_size}');    #exit(0)
         self.ih = nn.Sequential(
             nn.Conv2d(channels * 2, channels * 2, kernel_size, padding=padding),
             nn.Sigmoid()
@@ -235,6 +239,7 @@ class ConvGRU(nn.Module):
             print('h :', h);    exit(0) #   This does NOT happen, which means h_b4 and h are alway equeal and expand as is not necessary.
         '''    
         #h = h.expand_as(x)
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x, h)
         else:
@@ -254,6 +259,7 @@ class Projection(nn.Module):
         return self.conv(x.flatten(0, 1)).unflatten(0, (B, T))
         
     def forward(self, x):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x)
         else:

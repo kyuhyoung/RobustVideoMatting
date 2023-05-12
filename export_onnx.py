@@ -19,9 +19,11 @@ from math import ceil, floor
 
 from model import MattingNetwork, str2bool
 #from model import MattingNetwork, round_i, str2bool
+from inspect import getfile as gf, currentframe as cf
 
 class Exporter:
     def __init__(self):
+        #print(f'aaa at {gf(cf())} {cf().f_lineno}'); exit()
         self.parse_args()
         self.init_model()
         self.export()
@@ -38,6 +40,8 @@ class Exporter:
         parser.add_argument('--checkpoint', type=str, required=False)
         parser.add_argument('--output', type=str, required=True)
         parser.add_argument('--ceil_mode', type=str, required=True)
+        parser.add_argument('--verbose', action="store_true")
+        parser.add_argument('--no_verbose', dest="verbose", action="store_false")
         self.args = parser.parse_args()
         
     def init_model(self):
@@ -95,22 +99,26 @@ class Exporter:
         #rec[3] = torch.zeros([1, 64, 17, 30]).to(self.args.device, self.precision)
 
         src = torch.randn(1, 3, self.h_img, self.w_img).to(self.args.device, self.precision)
+        '''
         print('rec[0].shape :', rec[0].shape);  print('rec[1].shape :', rec[1].shape);
         print('rec[2].shape :', rec[2].shape);  print('rec[3].shape :', rec[3].shape);
         print('src.shape :', src.shape);
         #exit(0);
-        downsample_ratio = torch.tensor([self.args.downsample_ratio]).to(self.args.device)
+        '''
+        #downsample_ratio = torch.tensor([self.args.downsample_ratio]).to(self.args.device)
+        downsample_ratio = self.args.downsample_ratio
         '''
         dynamic_spatial = {0: 'batch_size', 2: 'height', 3: 'width'}
         dynamic_everything = {0: 'batch_size', 1: 'channels', 2: 'height', 3: 'width'}
         '''
+        #print(f'type(downsample_ratio) 1 : {type(downsample_ratio)}');    #exit()
         torch.onnx.export(
             model = self.model,
-            args = (src, *rec, downsample_ratio),
+            #args = (src, *rec, downsample_ratio),
+            args = (src, rec[0], rec[1], rec[2], rec[3], downsample_ratio),
             f = self.args.output,
             export_params = True,
-            #verbose = False,
-            verbose = True,
+            verbose = self.args.verbose,
             opset_version=self.args.opset,
             do_constant_folding=True,
             input_names=['src', 'r1i', 'r2i', 'r3i', 'r4i', 'downsample_ratio'],

@@ -2,6 +2,7 @@ from torch import nn
 from torchvision.models.mobilenetv3 import MobileNetV3, InvertedResidualConfig
 from torch.hub import load_state_dict_from_url
 from torchvision.transforms.functional import normalize
+from inspect import getfile as gf, currentframe as cf
 
 class MobileNetV3LargeEncoder(MobileNetV3):
     def __init__(self, ceil_mode, pretrained: bool = False):
@@ -60,46 +61,46 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         del self.classifier
         
     def forward_single_frame(self, x):
-        print('x.shape 1 {}'.format(x.shape)) 
+        #print('x.shape 1 {}'.format(x.shape)) 
         x = normalize(x, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        print('x.shape 2 {}'.format(x.shape)) 
+        #print('x.shape 2 {}'.format(x.shape)) 
         x = self.features[0](x)
-        print('x.shape 3 {}'.format(x.shape)) 
+        #print('x.shape 3 {}'.format(x.shape)) 
         x = self.features[1](x)
-        print('x.shape 4 {}'.format(x.shape)) 
+        #print('x.shape 4 {}'.format(x.shape)) 
         f1 = x
         x = self.features[2](x)
-        print('x.shape 5 {}'.format(x.shape)) 
+        #print('x.shape 5 {}'.format(x.shape)) 
         x = self.features[3](x)
-        print('x.shape 6 {}'.format(x.shape)) 
+        #print('x.shape 6 {}'.format(x.shape)) 
         f2 = x
         x = self.features[4](x)
-        print('x.shape 7 {}'.format(x.shape)) 
+        #print('x.shape 7 {}'.format(x.shape)) 
         x = self.features[5](x)
-        print('x.shape 8 {}'.format(x.shape)) 
+        #print('x.shape 8 {}'.format(x.shape)) 
         x = self.features[6](x)
-        print('x.shape 9 {}'.format(x.shape)) 
+        #print('x.shape 9 {}'.format(x.shape)) 
         f3 = x
         x = self.features[7](x)
-        print('x.shape 10 {}'.format(x.shape)) 
+        #print('x.shape 10 {}'.format(x.shape)) 
         x = self.features[8](x)
-        print('x.shape 11 {}'.format(x.shape)) 
+        #print('x.shape 11 {}'.format(x.shape)) 
         x = self.features[9](x)
-        print('x.shape 12 {}'.format(x.shape)) 
+        #print('x.shape 12 {}'.format(x.shape)) 
         x = self.features[10](x)
-        print('x.shape 13 {}'.format(x.shape)) 
+        #print('x.shape 13 {}'.format(x.shape)) 
         x = self.features[11](x)
-        print('x.shape 14 {}'.format(x.shape)) 
+        #print('x.shape 14 {}'.format(x.shape)) 
         x = self.features[12](x)
-        print('x.shape 15 {}'.format(x.shape)) 
+        #print('x.shape 15 {}'.format(x.shape)) 
         x = self.features[13](x)
-        print('x.shape 16 {}'.format(x.shape)) 
+        #print('x.shape 16 {}'.format(x.shape)) 
         x = self.features[14](x)
-        print('x.shape 17 {}'.format(x.shape)) 
+        #print('x.shape 17 {}'.format(x.shape)) 
         x = self.features[15](x)
-        print('x.shape 18 {}'.format(x.shape)) 
+        #print('x.shape 18 {}'.format(x.shape)) 
         x = self.features[16](x)
-        print('x.shape 19 {}'.format(x.shape)) 
+        #print('x.shape 19 {}'.format(x.shape)) 
         #exit(0)
         f4 = x
         return [f1, f2, f3, f4]
@@ -111,6 +112,7 @@ class MobileNetV3LargeEncoder(MobileNetV3):
         return features
 
     def forward(self, x):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             return self.forward_time_series(x)
         else:

@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from inspect import getfile as gf, currentframe as cf
 
 from .onnx_helper import CustomOnnxResizeToMatchSizeOp
 
@@ -62,6 +63,7 @@ class DeepGuidedFilterRefiner(nn.Module):
         return fgr, pha
     
     def forward(self, fine_src, base_src, base_fgr, base_pha, base_hid):
+        print(f'fine_src.ndim : {fine_src.ndim} at {gf(cf())} {cf().f_lineno}')
         if fine_src.ndim == 5:
             return self.forward_time_series(fine_src, base_src, base_fgr, base_pha, base_hid)
         else:

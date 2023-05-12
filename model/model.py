@@ -3,6 +3,7 @@ from torch import Tensor
 from torch import nn
 from torch.nn import functional as F
 from typing import Optional, List
+from inspect import getfile as gf, currentframe as cf
 
 from .mobilenetv3 import MobileNetV3LargeEncoder
 from .resnet import ResNet50Encoder
@@ -58,6 +59,8 @@ class MattingNetwork(nn.Module):
     def forward(self, src, r1, r2, r3, r4,
                 downsample_ratio: float = 1,
                 segmentation_pass: bool = False):
+        #print(f'type(segmentation_pass) : {type(segmentation_pass)}');    #exit()
+        #print(f'type(downsample_ratio) 2 : {type(downsample_ratio)}');    exit()
         '''
         if torch.onnx.is_in_onnx_export():
             #print('aaa')
@@ -69,21 +72,19 @@ class MattingNetwork(nn.Module):
             #print('ccc')
             src_sm = src
         '''
-        if downsample_ratio != 1:
+        if downsample_ratio.item() != 1:
             if torch.onnx.is_in_onnx_export():
                 '''
                 src_sm = CustomOnnxResizeByFactorOp.apply(src, downsample_ratio)
                 '''
                 #'''
-                print('aaa')
-                print('src.shape :', src.shape);    #exit(0)
-                print('src.requires_grad :', src.requires_grad);    #exit(0)
-                #print('torch.memory_format(src) :', torch.memory_format(src));    #exit(0)
-                print('src :', src);    #exit(0)
+                #print('aaa')
+                #print('src.shape :', src.shape);    #exit(0)
+                #print('src.requires_grad :', src.requires_grad);    #exit(0)
+                #print('src :', src);    #exit(0)
                 bchw = list(src.size())
-                print('bchw :', bchw);  #exit(0)
+                #print('bchw :', bchw);  #exit(0)
                 bb = bchw[0].item();   cc = bchw[1].item();   hh = round_i(bchw[2].item() * downsample_ratio.item());   ww = round_i(bchw[3].item() * downsample_ratio.item()); 
-                #bb = int(src.shape[0]);  cc = int(src.shape[1]);  hh = round_i(float(src.shape[2]) * downsample_ratio);  ww = round_i(float(src.shape[3]) * downsample_ratio); 
                 t0 = torch.zeros(bb, cc, hh, ww, dtype = src.dtype, layout = src.layout, device = src.device, requires_grad = False) 
                 src_sm = CustomOnnxResizeToMatchSizeOp.apply(src, t0)
                 #'''
@@ -128,6 +129,7 @@ class MattingNetwork(nn.Module):
             return [seg, *rec]
 
     def _interpolate(self, x: Tensor, scale_factor: float):
+        print(f'x.ndim : {x.ndim} at {gf(cf())} {cf().f_lineno}')
         if x.ndim == 5:
             B, T = x.shape[:2]
             x = F.interpolate(x.flatten(0, 1), scale_factor=scale_factor,
